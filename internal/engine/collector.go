@@ -2,7 +2,10 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
+	"net/http"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -17,6 +20,8 @@ import (
 const DialSysHeartbeatSubject = "dialsys.heartbeat"
 const DialSysProbingTaskSubject = "dialsys.probing.task"
 const DialSysProbingResultsSubject = "dialsys.probing.results"
+
+var hostname, _ = os.Hostname()
 
 type GeoInfo struct {
 	Query         string `json:"query"`
@@ -37,6 +42,7 @@ type Collector struct {
 	publisher  messaging.Publisher
 	subscriber messaging.Subscriber
 	es         EngineScheduler
+	httpClient *http.Client
 	geoInfo    atomic.Value
 }
 
@@ -48,7 +54,10 @@ func NewCollector(publisher messaging.Publisher, subscriber messaging.Subscriber
 		publisher:  publisher,
 		subscriber: subscriber,
 		es:         es,
-		geoInfo:    atomic.Value{},
+		httpClient: &http.Client{
+			Transport: &http.Transport{},
+		},
+		geoInfo: atomic.Value{},
 	}
 }
 
@@ -72,13 +81,13 @@ func (c *Collector) Start(ctx context.Context) error {
 		}
 	}
 
-	c.log.Info("subscribing topics")
-
-	c.subscribes(ctx)
-
-	c.log.Info("start received.")
+	go c.tickGeoInfo(ctx)
 
 	go c.received(ctx)
+
+	go c.heartbeat(ctx)
+
+	c.subscribes(ctx)
 
 	return nil
 }
@@ -93,6 +102,66 @@ func (c *Collector) subscribes(ctx context.Context) {
 	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject, func(sctx context.Context, header messaging.Header, payload []byte) error {
 		return nil
 	})
+}
+
+func (c *Collector) heartbeat(ctx context.Context) {
+	ticker := time.NewTicker(time.Second * 2)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			geoInfo, ok := c.geoInfo.Load().(GeoInfo)
+			if !ok {
+				continue
+			}
+
+			h := make(messaging.Header)
+			h.Set("host", hostname)
+			h.Set("ip", geoInfo.Query)
+			h.Set("priv_ip", "")
+
+			c.log.InfoContext(ctx, "heartbeat", "header", h)
+
+			_ = c.publisher.PublishWithHeaders(ctx, DialSysHeartbeatSubject, h, nil)
+		}
+	}
+}
+
+func (c *Collector) tickGeoInfo(ctx context.Context) {
+	load := func() {
+		reply, err := c.httpClient.Get("https://ip.konoaho.com/api/v1/ipquery")
+		if err != nil {
+			return
+		}
+
+		var geoInfo GeoInfo
+		if err := json.NewDecoder(reply.Body).Decode(&geoInfo); err != nil {
+			c.log.WarnContext(ctx, "Failed to decode public IP response failed", "err", err)
+			return
+		}
+
+		c.log.InfoContext(ctx, "tickGeoInfo", "geoInfo", geoInfo)
+
+		c.geoInfo.Store(geoInfo)
+	}
+
+	load()
+
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// 刷新 IP 地址逻辑
+			load()
+		}
+	}
 }
 
 func (c *Collector) received(ctx context.Context) {

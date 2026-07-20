@@ -17,15 +17,16 @@ type Ready interface {
 	HasReady() bool
 }
 
+type Header = nats.Header
+type Handler func(ctx context.Context, header Header, payload []byte) error
+
 type Publisher interface {
 	Ready
 
 	Publish(ctx context.Context, subject string, payload proto.Message) error
+	PublishWithHeaders(ctx context.Context, subject string, header Header, payload proto.Message) error
 	Request(ctx context.Context, subject string, req proto.Message, reply proto.Message) error
 }
-
-type Header = nats.Header
-type Handler func(ctx context.Context, header Header, payload []byte) error
 
 type Subscriber interface {
 	Ready
@@ -43,15 +44,26 @@ func NewPublisher(conn *Client) Publisher {
 }
 
 func (r *natsPublisher) Publish(ctx context.Context, subject string, payload proto.Message) error {
-	data, err := proto.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal proto: %w", err)
+	return r.PublishWithHeaders(ctx, subject, nil, payload)
+}
+
+func (r *natsPublisher) PublishWithHeaders(ctx context.Context, subject string, header Header, payload proto.Message) error {
+	if header == nil {
+		header = make(Header)
 	}
 
 	msg := &nats.Msg{
 		Subject: subject,
-		Data:    data,
-		Header:  make(nats.Header),
+		Header:  header,
+		Data:    nil,
+	}
+
+	if payload != nil {
+		data, err := proto.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("marshal proto: %w", err)
+		}
+		msg.Data = data
 	}
 
 	msg.Header.Set("content-type", "application/protobuf")
@@ -61,7 +73,6 @@ func (r *natsPublisher) Publish(ctx context.Context, subject string, payload pro
 	if err := r.conn.PublishMsg(msg); err != nil {
 		return fmt.Errorf("publish msg: %w", err)
 	}
-
 	return nil
 }
 
