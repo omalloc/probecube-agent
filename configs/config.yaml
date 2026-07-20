@@ -1,0 +1,12 @@
+server:
+  http:
+    addr: 0.0.0.0:8000
+    timeout: 1s
+leafnode:
+  endpoint: # NAS服务器地址
+    - "nats://your-nats-server:4222"
+  nkeys: "YOUR_NKEY_SEED\nYOUR_NKEY_PUBLIC_KEY"
+worker:
+  pool_size: 10 # 任务并发数
+  timeout: 5s # 任务超时时间
+  interval: 5s # 任务同步间隔

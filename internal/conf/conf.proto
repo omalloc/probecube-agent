@@ -1,0 +1,39 @@
+syntax = "proto3";
+package kratos.api;
+
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/omalloc/probecube-agent/internal/conf;conf";
+
+message Bootstrap {
+  Server server = 1;
+  LeafNode leafnode = 2;
+  Worker worker = 3;
+}
+
+message Server {
+  message HTTP {
+    string network = 1;
+    string addr = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  message GRPC {
+    string network = 1;
+    string addr = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  HTTP http = 1;
+  GRPC grpc = 2;
+}
+
+message LeafNode {
+  repeated string endpoint = 1;
+  string nkeys = 2;
+}
+
+message Worker {
+  int32 pool_size = 1;
+  bool async = 2;
+  google.protobuf.Duration timeout = 3;
+  google.protobuf.Duration interval = 4;
+}
