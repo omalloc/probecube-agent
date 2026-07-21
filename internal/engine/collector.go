@@ -2,15 +2,14 @@ package engine
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
-	"net/http"
 	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/go-kratos/kratos/v3/transport"
 	"github.com/omalloc/probecube-agent/internal/messaging"
+	"github.com/omalloc/probecube-agent/pkg/netinfo"
 	v1 "github.com/omalloc/probecube-console/api/message/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -22,18 +21,6 @@ const DialSysProbingResultsSubject = "dialsys.probing.results"
 
 var hostname, _ = os.Hostname()
 
-type GeoInfo struct {
-	Query         string `json:"query"`
-	ISP           string `json:"isp"`
-	Country       string `json:"country"`
-	CountryName   string `json:"countryName"`
-	Region        string `json:"region"`
-	City          string `json:"city"`
-	ZipCode       string `json:"zipCode"`
-	ContinentCode string `json:"continentCode"`
-	ContinentName string `json:"continentName"`
-}
-
 var _ transport.Server = (*Collector)(nil)
 
 type Collector struct {
@@ -41,8 +28,7 @@ type Collector struct {
 	publisher  messaging.Publisher
 	subscriber messaging.Subscriber
 	es         EngineScheduler
-	httpClient *http.Client
-	geoInfo    atomic.Value
+	netAddrs   atomic.Value
 }
 
 func NewCollector(publisher messaging.Publisher, subscriber messaging.Subscriber, es EngineScheduler, logger *slog.Logger) *Collector {
@@ -51,10 +37,7 @@ func NewCollector(publisher messaging.Publisher, subscriber messaging.Subscriber
 		publisher:  publisher,
 		subscriber: subscriber,
 		es:         es,
-		httpClient: &http.Client{
-			Transport: &http.Transport{},
-		},
-		geoInfo: atomic.Value{},
+		netAddrs:   atomic.Value{},
 	}
 }
 
@@ -76,7 +59,7 @@ func (c *Collector) Start(ctx context.Context) error {
 		}
 	}
 
-	go c.tickGeoInfo(ctx)
+	go c.netdial(ctx)
 
 	go c.received(ctx)
 
@@ -108,37 +91,35 @@ func (c *Collector) heartbeat(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			geoInfo, ok := c.geoInfo.Load().(GeoInfo)
+			netAddrs, ok := c.netAddrs.Load().(netinfo.Addrs)
 			if !ok {
 				continue
 			}
 
 			h := make(messaging.Header)
 			h.Set("host", hostname)
-			h.Set("ip", geoInfo.Query)
-			h.Set("priv_ip", "")
+			h.Set("ip", netAddrs.PublicIP)
+			h.Set("priv_ip", netAddrs.LocalIP)
 
 			_ = c.publisher.PublishWithHeaders(ctx, DialSysHeartbeatSubject, h, nil)
 		}
 	}
 }
 
-func (c *Collector) tickGeoInfo(ctx context.Context) {
+func (c *Collector) netdial(ctx context.Context) {
 	load := func() {
-		reply, err := c.httpClient.Get("https://ip.konoaho.com/api/v1/ipquery")
+		sctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		netAddrs, err := netinfo.Discover(sctx)
 		if err != nil {
+			c.log.WarnContext(ctx, "Failed to refresh network addresses", "err", err)
 			return
 		}
 
-		var geoInfo GeoInfo
-		if err := json.NewDecoder(reply.Body).Decode(&geoInfo); err != nil {
-			c.log.WarnContext(ctx, "Failed to decode public IP response failed", "err", err)
-			return
-		}
+		c.log.InfoContext(ctx, "Network addresses", "public_ip", netAddrs.PublicIP, "local_ip", netAddrs.LocalIP)
 
-		c.log.InfoContext(ctx, "tickGeoInfo", "geoInfo", geoInfo)
-
-		c.geoInfo.Store(geoInfo)
+		c.netAddrs.Store(netAddrs)
 	}
 
 	load()
