@@ -35,7 +35,7 @@ func wireApp(bootstrap *conf.Bootstrap, logger *slog.Logger) (*kratos.App, func(
 	}
 	publisher := messaging.NewPublisher(client)
 	subscriber := messaging.NewSubscriber(client, logger)
-	collector := engine.NewCollector(publisher, subscriber, engineScheduler, logger)
+	collector := engine.NewCollector(client, publisher, subscriber, engineScheduler, logger)
 	app := newApp(logger, httpServer, engineScheduler, collector)
 	return app, func() {
 		cleanup()

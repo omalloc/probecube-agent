@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -28,15 +29,17 @@ type Collector struct {
 	publisher  messaging.Publisher
 	subscriber messaging.Subscriber
 	es         EngineScheduler
+	nodeSN     string
 	netAddrs   atomic.Value
 }
 
-func NewCollector(publisher messaging.Publisher, subscriber messaging.Subscriber, es EngineScheduler, logger *slog.Logger) *Collector {
+func NewCollector(client *messaging.Client, publisher messaging.Publisher, subscriber messaging.Subscriber, es EngineScheduler, logger *slog.Logger) *Collector {
 	return &Collector{
 		log:        logger,
 		publisher:  publisher,
 		subscriber: subscriber,
 		es:         es,
+		nodeSN:     client.SN(),
 		netAddrs:   atomic.Value{},
 	}
 }
@@ -76,10 +79,36 @@ func (c *Collector) Stop(context.Context) error {
 }
 
 func (c *Collector) subscribes(ctx context.Context) {
-	// 订阅下发的探测任务
-	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject, func(sctx context.Context, header messaging.Header, payload []byte) error {
+	handler := func(sctx context.Context, _ messaging.Header, payload []byte) error {
+		var message v1.TaskMessage
+		if err := proto.Unmarshal(payload, &message); err != nil {
+			return err
+		}
+		c.es.Submit(sctx, taskFromProto(&message))
 		return nil
-	})
+	}
+
+	// Keep the shared subject for backwards-compatible broadcast tasks and add
+	// the node-specific subject used by NodeSelector dispatch.
+	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject, handler)
+	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject+"."+c.nodeSN, handler)
+}
+
+func taskFromProto(message *v1.TaskMessage) *Task {
+	timeout := time.Duration(0)
+	if message.Timeout != nil {
+		timeout = message.Timeout.AsDuration()
+	}
+	return &Task{
+		ID:       message.TaskId,
+		TaskSN:   message.TaskSn,
+		Proto:    Protocol(strings.TrimPrefix(message.Protocol.String(), "PROTOCOL_")),
+		Type:     "once",
+		Target:   message.Target,
+		Timeout:  timeout,
+		Payload:  message.Payload,
+		Metadata: message.Metadata,
+	}
 }
 
 func (c *Collector) heartbeat(ctx context.Context) {
