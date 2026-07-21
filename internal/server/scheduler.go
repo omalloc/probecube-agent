@@ -30,8 +30,6 @@ type Scheduler struct {
 }
 
 func NewSchedulerServer(c SchedulerConfig) engine.EngineScheduler {
-	log.Info("load config", "async", c.GetAsync(), "pool_size", c.GetPoolSize())
-
 	return &Scheduler{
 		async:       c.GetAsync(),
 		concurrency: int(c.GetPoolSize()),

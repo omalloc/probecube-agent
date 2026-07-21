@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-kratos/kratos/v3/log"
 	"github.com/go-kratos/kratos/v3/transport"
 	"github.com/omalloc/probecube-agent/internal/messaging"
 	v1 "github.com/omalloc/probecube-console/api/message/v1"
@@ -47,8 +46,6 @@ type Collector struct {
 }
 
 func NewCollector(publisher messaging.Publisher, subscriber messaging.Subscriber, es EngineScheduler, logger *slog.Logger) *Collector {
-	log.Info("xxxxxxxxxx")
-
 	return &Collector{
 		log:        logger,
 		publisher:  publisher,
@@ -64,8 +61,6 @@ func NewCollector(publisher messaging.Publisher, subscriber messaging.Subscriber
 // Start implements [transport.Server].
 func (c *Collector) Start(ctx context.Context) error {
 	interval := time.Millisecond * 200
-
-	c.log.Info("start collector.")
 
 	for {
 		if c.publisher.HasReady() {
@@ -122,8 +117,6 @@ func (c *Collector) heartbeat(ctx context.Context) {
 			h.Set("host", hostname)
 			h.Set("ip", geoInfo.Query)
 			h.Set("priv_ip", "")
-
-			c.log.InfoContext(ctx, "heartbeat", "header", h)
 
 			_ = c.publisher.PublishWithHeaders(ctx, DialSysHeartbeatSubject, h, nil)
 		}
