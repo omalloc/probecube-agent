@@ -28,7 +28,7 @@ func TestTaskResultProtoPreservesRunID(t *testing.T) {
 		TaskID: 7, RunID: 11, TaskSN: "task-7", Proto: HTTPS,
 		Success: false, Duration: 25 * time.Millisecond,
 		Metrics: map[string]interface{}{"status_code": 503}, Err: errors.New("unavailable"),
-	}).(*v1.TaskResult)
+	}, "SN-001").(*v1.TaskResult)
 	if !ok {
 		t.Fatalf("toTaskResultProto() type = %T", payload)
 	}

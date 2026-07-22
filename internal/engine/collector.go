@@ -159,14 +159,16 @@ func (c *Collector) received(ctx context.Context) {
 				c.log.ErrorContext(ctx, "task channel closed.")
 				return
 			}
-
 			if result.Success {
 				c.log.InfoContext(ctx, "Probe task success", "task_id", result.TaskID)
 			} else {
 				c.log.InfoContext(ctx, "Probe task failed", "task_id", result.TaskID)
 			}
 
-			payload := toTaskResultProto(result)
+			// task result.
+			payload := toTaskResultProto(result, c.nodeSN)
+
+			c.log.Info("report task result", "payload", payload)
 			if err := c.publisher.Publish(ctx, DialSysProbingResultsSubject, payload); err != nil {
 				c.log.ErrorContext(ctx, "report task result failed", "err", err)
 			}
@@ -174,7 +176,7 @@ func (c *Collector) received(ctx context.Context) {
 	}
 }
 
-func toTaskResultProto(r *Result) proto.Message {
+func toTaskResultProto(r *Result, nodeSN string) proto.Message {
 	protocol := v1.Protocol_PROTOCOL_UNSPECIFIED
 	if value, ok := v1.Protocol_value["PROTOCOL_"+strings.ToUpper(string(r.Proto))]; ok {
 		protocol = v1.Protocol(value)
@@ -187,9 +189,11 @@ func toTaskResultProto(r *Result) proto.Message {
 	if r.Err != nil {
 		resultErrors = map[string]string{"message": r.Err.Error()}
 	}
+
 	return &v1.TaskResult{
 		TaskId:     r.TaskID,
 		TaskSn:     r.TaskSN,
+		NodeId:     nodeSN, // 这里直接取本机 SN
 		RunId:      r.RunID,
 		Protocol:   protocol,
 		Success:    r.Success,
