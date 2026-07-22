@@ -42,6 +42,7 @@ func (p *DNSProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resul
 
 	result := &engine.Result{
 		TaskID:    task.ID,
+		RunID:     task.RunID,
 		TaskSN:    task.TaskSN,
 		Type:      task.Type,
 		Proto:     task.Proto,

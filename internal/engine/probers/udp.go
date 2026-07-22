@@ -43,6 +43,7 @@ func (p *UDPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resul
 	if err != nil {
 		return &engine.Result{
 			TaskID:    task.ID,
+			RunID:     task.RunID,
 			TaskSN:    task.TaskSN,
 			Type:      task.Type,
 			Proto:     task.Proto,
@@ -60,6 +61,7 @@ func (p *UDPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resul
 
 	result := &engine.Result{
 		TaskID:    task.ID,
+		RunID:     task.RunID,
 		TaskSN:    task.TaskSN,
 		Type:      task.Type,
 		Proto:     task.Proto,

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -94,23 +95,6 @@ func (c *Collector) subscribes(ctx context.Context) {
 	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject+"."+c.nodeSN, handler)
 }
 
-func taskFromProto(message *v1.TaskMessage) *Task {
-	timeout := time.Duration(0)
-	if message.Timeout != nil {
-		timeout = message.Timeout.AsDuration()
-	}
-	return &Task{
-		ID:       message.TaskId,
-		TaskSN:   message.TaskSn,
-		Proto:    Protocol(strings.TrimPrefix(message.Protocol.String(), "PROTOCOL_")),
-		Type:     "once",
-		Target:   message.Target,
-		Timeout:  timeout,
-		Payload:  message.Payload,
-		Metadata: message.Metadata,
-	}
-}
-
 func (c *Collector) heartbeat(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 2)
 	defer ticker.Stop()
@@ -145,8 +129,6 @@ func (c *Collector) netdial(ctx context.Context) {
 			c.log.WarnContext(ctx, "Failed to refresh network addresses", "err", err)
 			return
 		}
-
-		c.log.InfoContext(ctx, "Network addresses", "public_ip", netAddrs.PublicIP, "local_ip", netAddrs.LocalIP)
 
 		c.netAddrs.Store(netAddrs)
 	}
@@ -184,7 +166,7 @@ func (c *Collector) received(ctx context.Context) {
 				c.log.InfoContext(ctx, "Probe task failed", "task_id", result.TaskID)
 			}
 
-			payload := toProto(result)
+			payload := toTaskResultProto(result)
 			if err := c.publisher.Publish(ctx, DialSysProbingResultsSubject, payload); err != nil {
 				c.log.ErrorContext(ctx, "report task result failed", "err", err)
 			}
@@ -192,15 +174,47 @@ func (c *Collector) received(ctx context.Context) {
 	}
 }
 
-func toProto(r *Result) proto.Message {
+func toTaskResultProto(r *Result) proto.Message {
+	protocol := v1.Protocol_PROTOCOL_UNSPECIFIED
+	if value, ok := v1.Protocol_value["PROTOCOL_"+strings.ToUpper(string(r.Proto))]; ok {
+		protocol = v1.Protocol(value)
+	}
+	metadata := make(map[string]string, len(r.Metrics))
+	for key, value := range r.Metrics {
+		metadata[key] = fmt.Sprint(value)
+	}
+	var resultErrors map[string]string
+	if r.Err != nil {
+		resultErrors = map[string]string{"message": r.Err.Error()}
+	}
 	return &v1.TaskResult{
-		TaskId: r.TaskID,
-		TaskSn: r.TaskSN,
-		// Protocol: v1.Protocol(v1.Protocol_value[r.Proto]),
+		TaskId:     r.TaskID,
+		TaskSn:     r.TaskSN,
+		RunId:      r.RunID,
+		Protocol:   protocol,
 		Success:    r.Success,
 		Duration:   durationpb.New(r.Duration),
 		LatencyMs:  int64(r.LatencyMs),
 		StatusInfo: r.Status,
-		// Metadata:   r.Metrics,
+		Metadata:   metadata,
+		Errors:     resultErrors,
+	}
+}
+
+func taskFromProto(message *v1.TaskMessage) *Task {
+	timeout := time.Duration(0)
+	if message.Timeout != nil {
+		timeout = message.Timeout.AsDuration()
+	}
+	return &Task{
+		ID:       message.TaskId,
+		RunID:    message.RunId,
+		TaskSN:   message.TaskSn,
+		Proto:    Protocol(strings.TrimPrefix(message.Protocol.String(), "PROTOCOL_")),
+		Type:     "once",
+		Target:   message.Target,
+		Timeout:  timeout,
+		Payload:  message.Payload,
+		Metadata: message.Metadata,
 	}
 }

@@ -67,6 +67,7 @@ func (p *HTTPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resu
 
 	result := &engine.Result{
 		TaskID:    task.ID,
+		RunID:     task.RunID,
 		TaskSN:    task.TaskSN,
 		Proto:     task.Proto,
 		Type:      task.Type,

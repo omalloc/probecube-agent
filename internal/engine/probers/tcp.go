@@ -171,6 +171,7 @@ func (p *TCPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resul
 		if err != nil {
 			return &engine.Result{
 				TaskID:    task.ID,
+				RunID:     task.RunID,
 				TaskSN:    task.TaskSN,
 				Proto:     task.Proto,
 				Type:      task.Type,
@@ -209,6 +210,7 @@ func (p *TCPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resul
 			duration := time.Since(start)
 			result := &engine.Result{
 				TaskID:    task.ID,
+				RunID:     task.RunID,
 				TaskSN:    task.TaskSN,
 				Proto:     task.Proto,
 				Type:      task.Type,

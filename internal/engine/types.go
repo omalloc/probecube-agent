@@ -21,6 +21,7 @@ const (
 // Task 探测任务定义
 type Task struct {
 	ID       int64             `json:"id"`
+	RunID    int64             `json:"run_id"`
 	TaskSN   string            `json:"task_sn"`
 	Proto    Protocol          `json:"proto"`
 	Type     string            `json:"type"`
@@ -33,6 +34,7 @@ type Task struct {
 // Result 探测结果定义
 type Result struct {
 	TaskID    int64                  `json:"task_id"`
+	RunID     int64                  `json:"run_id"`
 	TaskSN    string                 `json:"task_sn"`
 	Type      string                 `json:"type"`
 	Proto     Protocol               `json:"proto"`

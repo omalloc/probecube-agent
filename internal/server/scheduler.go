@@ -53,8 +53,8 @@ func (s *Scheduler) Submit(ctx context.Context, task *engine.Task) {
 		return
 	}
 
-	// 同步任务
-	s.tasks <- task
+	// 同步任务直接执行，不依赖 Start 启动的异步队列消费协程。
+	s.dispatch(ctx, task)
 }
 
 func (s *Scheduler) Results() <-chan *engine.Result {
@@ -91,6 +91,7 @@ func (s *Scheduler) dispatch(ctx context.Context, task *engine.Task) {
 	if !ok {
 		s.results <- &engine.Result{
 			TaskID:  task.ID,
+			RunID:   task.RunID,
 			TaskSN:  task.TaskSN,
 			Type:    task.Type,
 			Proto:   task.Proto,
@@ -104,6 +105,7 @@ func (s *Scheduler) dispatch(ctx context.Context, task *engine.Task) {
 	if err != nil {
 		s.results <- &engine.Result{
 			TaskID:  task.ID,
+			RunID:   task.RunID,
 			TaskSN:  task.TaskSN,
 			Type:    task.Type,
 			Proto:   task.Proto,
@@ -114,6 +116,10 @@ func (s *Scheduler) dispatch(ctx context.Context, task *engine.Task) {
 		return
 	}
 
+	// Preserve dispatch identity even for third-party probers that only return probe metrics.
+	result.TaskID = task.ID
+	result.RunID = task.RunID
+	result.TaskSN = task.TaskSN
 	s.results <- result
 }
 
