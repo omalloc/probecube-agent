@@ -25,7 +25,7 @@ type Publisher interface {
 
 	Publish(ctx context.Context, subject string, payload proto.Message) error
 	PublishWithHeaders(ctx context.Context, subject string, header Header, payload proto.Message) error
-	Request(ctx context.Context, subject string, req proto.Message, reply proto.Message) error
+	RequestWithHeaders(ctx context.Context, subject string, h Header, req proto.Message, reply proto.Message) error
 }
 
 type Subscriber interface {
@@ -77,22 +77,42 @@ func (r *natsPublisher) PublishWithHeaders(ctx context.Context, subject string, 
 }
 
 func (r *natsPublisher) Request(ctx context.Context, subject string, req proto.Message, reply proto.Message) error {
-	data, err := proto.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("marshal proto request: %w", err)
+	return r.RequestWithHeaders(ctx, subject, nil, req, reply)
+}
+
+func (r *natsPublisher) RequestWithHeaders(ctx context.Context, subject string, h Header, req, reply proto.Message) error {
+	if h == nil {
+		h = make(Header)
 	}
 
-	msg, err := r.conn.RequestWithContext(
+	h.Add("sn", r.conn.sn)
+
+	reqMsg := &nats.Msg{
+		Subject: subject,
+		Header:  h,
+		Data:    nil,
+	}
+
+	if req != nil {
+		data, err := proto.Marshal(req)
+		if err != nil {
+			return fmt.Errorf("marshal proto request: %w", err)
+		}
+		reqMsg.Data = data
+	}
+
+	replyMsg, err := r.conn.RequestMsgWithContext(
 		ctx,
-		subject,
-		data,
+		reqMsg,
 	)
 	if err != nil {
 		return fmt.Errorf("request %s: %w", subject, err)
 	}
 
-	if err := proto.Unmarshal(msg.Data, reply); err != nil {
-		return fmt.Errorf("unmarshal proto reply: %w", err)
+	if replyMsg.Data != nil && reply != nil {
+		if err := proto.Unmarshal(replyMsg.Data, reply); err != nil {
+			return fmt.Errorf("unmarshal proto reply: %w", err)
+		}
 	}
 
 	return nil

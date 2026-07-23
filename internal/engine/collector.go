@@ -18,8 +18,9 @@ import (
 )
 
 const DialSysHeartbeatSubject = "dialsys.heartbeat"
-const DialSysProbingTaskSubject = "dialsys.probing.task"
-const DialSysProbingResultsSubject = "dialsys.probing.results"
+const DialSysProbeTaskSubject = "dialsys.probe.task"
+const DialSysProbeResultsSubject = "dialsys.probe.results"
+const DialSysNodeMetadataSubject = "dialsys.node.metadata"
 
 var hostname, _ = os.Hostname()
 
@@ -32,6 +33,7 @@ type Collector struct {
 	engine     ProbeEngineScheduler
 	nodeSN     string
 	netAddrs   atomic.Value
+	metadata   atomic.Pointer[v1.NodeMetadata]
 }
 
 func NewCollector(client *messaging.Client, publisher messaging.Publisher, subscriber messaging.Subscriber, engine ProbeEngineScheduler, logger *slog.Logger) *Collector {
@@ -42,6 +44,7 @@ func NewCollector(client *messaging.Client, publisher messaging.Publisher, subsc
 		engine:     engine,
 		nodeSN:     client.SN(),
 		netAddrs:   atomic.Value{},
+		metadata:   atomic.Pointer[v1.NodeMetadata]{},
 	}
 }
 
@@ -69,6 +72,8 @@ func (c *Collector) Start(ctx context.Context) error {
 
 	go c.heartbeat(ctx)
 
+	go c.requestNodeMetadata(ctx)
+
 	c.subscribes(ctx)
 
 	return nil
@@ -83,16 +88,24 @@ func (c *Collector) subscribes(ctx context.Context) {
 	handler := func(sctx context.Context, _ messaging.Header, payload []byte) error {
 		var message v1.TaskMessage
 		if err := proto.Unmarshal(payload, &message); err != nil {
+			c.log.Info("unmarshal task failed", "err", err)
 			return err
 		}
+
+		c.log.Info("recevice new task",
+			"task_sn", message.TaskSn,
+			"protocol", message.Protocol,
+			"run_id", message.RunId,
+			"target", message.Target)
+
 		c.engine.Submit(sctx, taskFromProto(&message))
 		return nil
 	}
 
 	// Keep the shared subject for backwards-compatible broadcast tasks and add
 	// the node-specific subject used by NodeSelector dispatch.
-	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject, handler)
-	c.subscriber.Subscribe(ctx, DialSysProbingTaskSubject+"."+c.nodeSN, handler)
+	c.subscriber.Subscribe(ctx, DialSysProbeTaskSubject, handler)
+	c.subscriber.Subscribe(ctx, DialSysProbeTaskSubject+"."+c.nodeSN, handler)
 }
 
 func (c *Collector) heartbeat(ctx context.Context) {
@@ -160,18 +173,47 @@ func (c *Collector) received(ctx context.Context) {
 				return
 			}
 			if result.Success {
-				c.log.InfoContext(ctx, "Probe task success", "task_id", result.TaskID)
+				c.log.DebugContext(ctx, "Probe task success", "task_id", result.TaskID)
 			} else {
-				c.log.InfoContext(ctx, "Probe task failed", "task_id", result.TaskID)
+				c.log.DebugContext(ctx, "Probe task failed", "task_id", result.TaskID)
 			}
 
 			// task result.
 			payload := toTaskResultProto(result, c.nodeSN)
 
-			c.log.Info("report task result", "payload", payload)
-			if err := c.publisher.Publish(ctx, DialSysProbingResultsSubject, payload); err != nil {
+			c.log.Debug("report task result", "payload", payload)
+			if err := c.publisher.Publish(ctx, DialSysProbeResultsSubject, payload); err != nil {
 				c.log.ErrorContext(ctx, "report task result failed", "err", err)
 			}
+		}
+	}
+}
+
+func (c *Collector) requestNodeMetadata(ctx context.Context) {
+
+	load := func() {
+		metadata := &v1.NodeMetadata{}
+
+		c.publisher.RequestWithHeaders(context.Background(), DialSysNodeMetadataSubject, nil, nil, metadata)
+
+		c.log.DebugContext(ctx, "[nats] request", "subject", DialSysNodeMetadataSubject, "reply", metadata)
+
+		if metadata.Id > 0 {
+			c.metadata.Store(metadata)
+		}
+	}
+
+	load()
+
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			load()
 		}
 	}
 }

@@ -1,6 +1,6 @@
 server:
   http:
-    addr: 0.0.0.0:8000
+    addr: localhost:0
     timeout: 1s
 leafnode:
   endpoint: # NAS服务器地址

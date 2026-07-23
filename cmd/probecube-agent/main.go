@@ -53,7 +53,7 @@ func main() {
 	logger := log.NewLogger(
 		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			AddSource: false,
-			Level:     slog.LevelDebug,
+			Level:     slog.LevelInfo,
 		}),
 	).With(
 		slog.String("service.id", id),
