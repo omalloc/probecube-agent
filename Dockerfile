@@ -16,9 +16,6 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
-
 COPY --from=builder /src/bin /app
 
 WORKDIR /app

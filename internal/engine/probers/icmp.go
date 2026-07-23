@@ -77,43 +77,63 @@ func (p *ICMPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Resu
 		return nil, fmt.Errorf("failed to send ICMP: %w", err)
 	}
 
+	var duration time.Duration
+	var rm *icmp.Message
+	var readErr error
+
 	reply := make([]byte, 1500)
-	n, _, err := conn.ReadFrom(reply)
-	duration := time.Since(start)
+	expectedID := os.Getpid() & 0xffff
+
+	for {
+		var n int
+		n, _, readErr = conn.ReadFrom(reply)
+		if readErr != nil {
+			break
+		}
+
+		duration = time.Since(start)
+
+		// 4. 解析回包
+		var parseErr error
+		rm, parseErr = icmp.ParseMessage(1, reply[:n])
+		if parseErr != nil {
+			continue
+		}
+
+		if rm.Type == ipv4.ICMPTypeEchoReply {
+			echoReply, ok := rm.Body.(*icmp.Echo)
+			if ok && echoReply.ID == expectedID && echoReply.Seq == 1 {
+				break
+			}
+		}
+	}
 
 	result := &engine.Result{
-		TaskID:    task.ID,
-		RunID:     task.RunID,
-		TaskSN:    task.TaskSN,
-		Proto:     task.Proto,
-		Type:      task.Type,
-		Duration:  duration,
-		LatencyMs: float64(duration.Microseconds()) / 1000.0,
-		Metrics:   make(map[string]interface{}),
+		TaskID:   task.ID,
+		RunID:    task.RunID,
+		TaskSN:   task.TaskSN,
+		Proto:    task.Proto,
+		Type:     task.Type,
+		Duration: duration,
+		Metrics:  make(map[string]interface{}),
 	}
 
-	if err != nil {
+	if readErr != nil {
 		result.Success = false
 		result.Status = "Timeout"
-		result.Err = err
+		result.Err = readErr
+		elapsed := time.Since(start)
+		result.LatencyMs = float64(elapsed.Microseconds()) / 1000.0
 		return result, nil
 	}
 
-	// 4. 解析回包
-	rm, err := icmp.ParseMessage(1, reply[:n])
-	if err != nil {
-		result.Success = false
-		result.Status = "Parse Error"
-		result.Err = err
-		return result, nil
-	}
+	result.LatencyMs = float64(duration.Microseconds()) / 1000.0
+	result.Success = true
+	result.Status = fmt.Sprintf("%.2fms", result.LatencyMs)
 
-	if rm.Type == ipv4.ICMPTypeEchoReply {
-		result.Success = true
-		result.Status = "Alive"
-	} else {
-		result.Success = false
-		result.Status = fmt.Sprintf("Unexpected Type: %v", rm.Type)
+	result.Metrics["rtt_ms"] = result.LatencyMs
+	if echoReply, ok := rm.Body.(*icmp.Echo); ok {
+		result.Metrics["seq"] = echoReply.Seq
 	}
 
 	return result, nil

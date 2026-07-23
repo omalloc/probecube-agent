@@ -8,6 +8,7 @@ require (
 	github.com/nats-io/nats.go v1.52.0
 	github.com/nats-io/nkeys v0.4.16
 	github.com/omalloc/contrib/v2 v2.0.1
+	github.com/omalloc/probecube-console v0.0.0-20260723170244-551703ad9fc8
 	github.com/pion/stun/v3 v3.1.6
 	go.einride.tech/aip v0.86.3
 	go.uber.org/automaxprocs v1.6.0
