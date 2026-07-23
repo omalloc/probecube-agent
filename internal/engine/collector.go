@@ -29,17 +29,17 @@ type Collector struct {
 	log        *slog.Logger
 	publisher  messaging.Publisher
 	subscriber messaging.Subscriber
-	es         EngineScheduler
+	engine     ProbeEngineScheduler
 	nodeSN     string
 	netAddrs   atomic.Value
 }
 
-func NewCollector(client *messaging.Client, publisher messaging.Publisher, subscriber messaging.Subscriber, es EngineScheduler, logger *slog.Logger) *Collector {
+func NewCollector(client *messaging.Client, publisher messaging.Publisher, subscriber messaging.Subscriber, engine ProbeEngineScheduler, logger *slog.Logger) *Collector {
 	return &Collector{
 		log:        logger,
 		publisher:  publisher,
 		subscriber: subscriber,
-		es:         es,
+		engine:     engine,
 		nodeSN:     client.SN(),
 		netAddrs:   atomic.Value{},
 	}
@@ -85,7 +85,7 @@ func (c *Collector) subscribes(ctx context.Context) {
 		if err := proto.Unmarshal(payload, &message); err != nil {
 			return err
 		}
-		c.es.Submit(sctx, taskFromProto(&message))
+		c.engine.Submit(sctx, taskFromProto(&message))
 		return nil
 	}
 
@@ -154,7 +154,7 @@ func (c *Collector) received(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case result, ok := <-c.es.Results():
+		case result, ok := <-c.engine.Results():
 			if !ok {
 				c.log.ErrorContext(ctx, "task channel closed.")
 				return

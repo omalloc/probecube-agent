@@ -9,7 +9,7 @@ import (
 
 var ProviderSet = wire.NewSet(NewCollector)
 
-type EngineScheduler interface {
+type ProbeEngineScheduler interface {
 	transport.Server
 
 	Submit(ctx context.Context, task *Task)

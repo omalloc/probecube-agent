@@ -8,7 +8,7 @@ import (
 	_ "github.com/omalloc/probecube-agent/internal/engine/probers"
 )
 
-var _ engine.EngineScheduler = (*Scheduler)(nil)
+var _ engine.ProbeEngineScheduler = (*Scheduler)(nil)
 
 const (
 	UnsupportedProtocol = "Unsupported Protocol"
@@ -29,7 +29,7 @@ type Scheduler struct {
 	stopCh      chan struct{}
 }
 
-func NewSchedulerServer(c SchedulerConfig) engine.EngineScheduler {
+func NewSchedulerServer(c SchedulerConfig) engine.ProbeEngineScheduler {
 	return &Scheduler{
 		async:       c.GetAsync(),
 		concurrency: int(c.GetPoolSize()),
