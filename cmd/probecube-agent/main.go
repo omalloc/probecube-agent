@@ -7,15 +7,20 @@ import (
 
 	"github.com/omalloc/probecube-agent/internal/conf"
 	"github.com/omalloc/probecube-agent/internal/engine"
+	"github.com/omalloc/probecube-agent/pkg/embedbuf"
+
+	_ "embed"
 
 	"github.com/go-kratos/kratos/v3"
 	"github.com/go-kratos/kratos/v3/config"
-	"github.com/go-kratos/kratos/v3/config/file"
 	"github.com/go-kratos/kratos/v3/log"
 	"github.com/go-kratos/kratos/v3/transport/http"
 
 	_ "go.uber.org/automaxprocs"
 )
+
+//go:embed config.key
+var embedConfig []byte
 
 // go build -ldflags "-X main.Version=x.y.z"
 var (
@@ -24,13 +29,15 @@ var (
 	// Version is the version of the compiled software.
 	Version string
 	// flagconf is the config flag.
-	flagconf string
+	flagconf  string
+	flagembed bool
 
 	id, _ = os.Hostname()
 )
 
 func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
+	flag.BoolVar(&flagembed, "embed", false, "embed config")
 }
 
 func newApp(logger *slog.Logger, hs *http.Server, sd engine.ProbeEngineScheduler, cc *engine.Collector) *kratos.App {
@@ -59,9 +66,10 @@ func main() {
 		slog.String("service.id", id),
 	)
 	log.SetDefault(logger)
+
 	c := config.New(
 		config.WithSource(
-			file.NewSource(flagconf),
+			embedbuf.NewSource(embedConfig),
 		),
 	)
 	defer c.Close()

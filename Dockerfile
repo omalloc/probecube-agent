@@ -1,4 +1,4 @@
-FROM docker.m.daocloud.io/library/golang:1.26 AS builder
+FROM --platform=$BUILDPLATFORM docker.m.daocloud.io/library/golang:1.26 AS builder
 
 COPY go.mod go.sum ./
 RUN GOPROXY=https://goproxy.cn go mod download
@@ -24,4 +24,4 @@ ENV TZ=Asia/Shanghai
 
 VOLUME /data/conf
 
-CMD ["./probecube-agent", "-conf", "/data/conf"]
+CMD ["./probecube-agent", "-embed"]
