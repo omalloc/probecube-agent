@@ -57,7 +57,7 @@ type watcher struct {
 
 // Next implements [config.Watcher].
 func (w *watcher) Next() ([]*config.KeyValue, error) {
-	return nil, nil
+	return []*config.KeyValue{}, nil
 }
 
 // Stop implements [config.Watcher].
@@ -68,12 +68,12 @@ func (w *watcher) Stop() error {
 func decrypt(cipherText []byte, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("aes.NewCipher error: %v", err)
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cipher.NewGCM error: %v", err)
 	}
 
 	nonceSize := gcm.NonceSize()
@@ -82,5 +82,9 @@ func decrypt(cipherText []byte, key []byte) ([]byte, error) {
 	}
 
 	nonce, cipherTextOnly := cipherText[:nonceSize], cipherText[nonceSize:]
-	return gcm.Open(nil, nonce, cipherTextOnly, nil)
+	plain, err := gcm.Open(nil, nonce, cipherTextOnly, nil)
+	if err != nil {
+		return nil, fmt.Errorf("gcm.Open error: %v", err)
+	}
+	return plain, nil
 }

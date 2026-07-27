@@ -1,7 +1,6 @@
 GOHOSTOS:=$(shell go env GOHOSTOS)
 GOPATH:=$(shell go env GOPATH)
 VERSION=$(shell git describe --tags --always)
-DESKEY:=$(shell echo )
 
 .PHONY: init
 # init env
@@ -22,7 +21,7 @@ api:
 .PHONY: build
 # build
 build:
-	mkdir -p bin/ && CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=$(VERSION) -X github.com/omalloc/probecube-agent/pkg/embedbuf.decKey=$(PROBECUBE_DESKEY)" -o ./bin/ ./...
+	@mkdir -p bin/ && CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=$(VERSION) -X github.com/omalloc/probecube-agent/pkg/embedbuf.decKey=$(PROBECUBE_DESKEY)" -o ./bin/ ./...
 
 .PHONY: generate
 # generate

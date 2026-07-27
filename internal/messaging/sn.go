@@ -8,7 +8,7 @@ import (
 	"github.com/omalloc/contrib/v2/machineid"
 )
 
-const SNFilePath = "machine-id"
+const SNFilePath = "/var/lib/probecube-agent/machine-id"
 
 func loadSN() string {
 	buf, err := os.ReadFile(SNFilePath)

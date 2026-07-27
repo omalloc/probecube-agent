@@ -1,13 +1,16 @@
 FROM --platform=$BUILDPLATFORM docker.m.daocloud.io/library/golang:1.26 AS builder
 
 COPY go.mod go.sum ./
-RUN GOPROXY=https://goproxy.cn go mod download
+
+RUN --mount=type=secret,id=appkey,env=PROBECUBE_DESKEY \
+    GOPROXY=https://goproxy.cn go mod download 
 
 COPY . /src
 
 WORKDIR /src
 
-RUN make build
+RUN --mount=type=secret,id=appkey,env=PROBECUBE_DESKEY \
+    make PROBECUBE_DESKEY="$PROBECUBE_DESKEY" build
 
 FROM docker.m.daocloud.io/library/alpine:3.21
 

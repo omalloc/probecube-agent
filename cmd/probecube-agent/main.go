@@ -19,7 +19,7 @@ import (
 	_ "go.uber.org/automaxprocs"
 )
 
-//go:embed config.key
+//go:embed app.cert
 var embedConfig []byte
 
 // go build -ldflags "-X main.Version=x.y.z"
