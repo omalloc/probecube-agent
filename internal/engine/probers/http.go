@@ -32,11 +32,6 @@ func NewHTTPProber() *HTTPProber {
 	}
 }
 
-func init() {
-	engine.Register(engine.HTTP, NewHTTPProber())
-	engine.Register(engine.HTTPS, NewHTTPProber())
-}
-
 func (p *HTTPProber) Probe(ctx context.Context, task *engine.Task) (*engine.Result, error) {
 	start := time.Now()
 	var (
