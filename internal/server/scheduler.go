@@ -95,6 +95,7 @@ func (s *Scheduler) dispatch(ctx context.Context, task *engine.Task) {
 			TaskSN:  task.TaskSN,
 			Type:    task.Type,
 			Proto:   task.Proto,
+			Target:  task.Target,
 			Success: false,
 			Status:  UnsupportedProtocol,
 		}
@@ -109,6 +110,7 @@ func (s *Scheduler) dispatch(ctx context.Context, task *engine.Task) {
 			TaskSN:  task.TaskSN,
 			Type:    task.Type,
 			Proto:   task.Proto,
+			Target:  task.Target,
 			Success: false,
 			Status:  ProbeFailed,
 			Err:     err,
@@ -120,6 +122,9 @@ func (s *Scheduler) dispatch(ctx context.Context, task *engine.Task) {
 	result.TaskID = task.ID
 	result.RunID = task.RunID
 	result.TaskSN = task.TaskSN
+	if result.Target == "" {
+		result.Target = task.Target
+	}
 	s.results <- result
 }
 

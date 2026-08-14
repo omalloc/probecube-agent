@@ -84,3 +84,49 @@ func TestScheduler_Error(t *testing.T) {
 		t.Errorf("Expected status 'Probe Failed', got %s", result.Status)
 	}
 }
+
+func TestScheduler_TargetPassthrough(t *testing.T) {
+	tests := []struct {
+		name   string
+		proto  engine.Protocol
+		status string
+	}{
+		{"probe_error", "MOCKT", "Probe Failed"},
+		{"unsupported", "NOPE", "Unsupported Protocol"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine.Register("MOCKT", &mockProber{err: errors.New("failed")})
+
+			s := NewSchedulerServer(&mockConfig{async: false, poolSize: 1})
+			s.Submit(context.Background(), &engine.Task{
+				ID: 7, TaskSN: "target-test", Proto: tt.proto, Target: "example.com",
+			})
+
+			result := <-s.Results()
+			if result.Target != "example.com" {
+				t.Fatalf("result.Target = %q, want example.com", result.Target)
+			}
+			if result.Status != tt.status {
+				t.Fatalf("result.Status = %q, want %q", result.Status, tt.status)
+			}
+		})
+	}
+}
+
+func TestScheduler_SuccessPassthroughTarget(t *testing.T) {
+	engine.Register("MOCKS", &mockProber{})
+
+	s := NewSchedulerServer(&mockConfig{async: false, poolSize: 1})
+	s.Submit(context.Background(), &engine.Task{
+		ID: 7, TaskSN: "target-ok", Proto: "MOCKS", Target: "example.org",
+	})
+
+	result := <-s.Results()
+	if result.Target != "example.org" {
+		t.Fatalf("result.Target = %q, want example.org", result.Target)
+	}
+	if !result.Success {
+		t.Fatalf("result.Success = false, want true")
+	}
+}

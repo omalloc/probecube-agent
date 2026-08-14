@@ -238,6 +238,7 @@ func toTaskResultProto(r *Result, nodeSN string) proto.Message {
 		NodeId:     nodeSN, // 这里直接取本机 SN
 		RunId:      r.RunID,
 		Protocol:   protocol,
+		Target:     r.Target,
 		Success:    r.Success,
 		Duration:   durationpb.New(r.Duration),
 		LatencyMs:  int64(r.LatencyMs),

@@ -38,6 +38,7 @@ type Result struct {
 	TaskSN    string                 `json:"task_sn"`
 	Type      string                 `json:"type"`
 	Proto     Protocol               `json:"proto"`
+	Target    string                 `json:"target,omitempty"`
 	Success   bool                   `json:"success"`
 	Duration  time.Duration          `json:"duration"`
 	LatencyMs float64                `json:"latency_ms"`
