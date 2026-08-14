@@ -15,7 +15,7 @@ RUN --mount=type=secret,id=appkey,env=PROBECUBE_DESKEY \
 FROM docker.m.daocloud.io/library/alpine:3.21
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
-    && apk add --no-cache ca-certificates tzdata \
+    && apk add --no-cache ca-certificates tzdata chromium \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone
 

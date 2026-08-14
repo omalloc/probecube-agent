@@ -49,8 +49,10 @@ type Prober interface {
     - 使用 `github.com/miekg/dns`。
     - 支持 A, AAAA, CNAME, TXT 等记录校验，检测解析时延及劫持。
 - **Browser**:
-    - 集成 `playwright-go`。
-    - 获取 LCP, FID, CLS 等 Web Vitals 指标。
+    - 集成 `chromedp` 驱动 Headless Chrome/Chromium(实现决策:相对初版
+      规划的 `playwright-go`,chromedp 无 Node.js 运行时依赖,契合边缘节点
+      alpine + CGO_ENABLED=0 静态二进制的部署形态)。
+    - 采集 FCP, LCP, CLS 等 Web Vitals 指标及 DOMContentLoaded/Load 耗时。
 
 ### 3.3 网络特征模拟 (Raw Socket)
 - **底层构造**: 使用 `google/gopacket` 或直接操作 `AF_PACKET` (Linux) / `BPF` (macOS) 构造特定的 TCP 标志位组合（如 SYN 扫描）。

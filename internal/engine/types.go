@@ -15,7 +15,7 @@ const (
 	HTTP    Protocol = "HTTP"
 	HTTPS   Protocol = "HTTPS"
 	DNS     Protocol = "DNS"
-	Browser Protocol = "Browser"
+	Browser Protocol = "BROWSER"
 )
 
 // Task 探测任务定义

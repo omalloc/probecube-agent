@@ -47,7 +47,7 @@ func TestHTTPProber_Probe_StatusCodes(t *testing.T) {
 
 			p := newTestHTTPProber(t, true)
 			result, err := p.Probe(context.Background(), &engine.Task{
-				ID: 1, TaskSN: "http-"+tt.name, Proto: engine.HTTP,
+				ID: 1, TaskSN: "http-" + tt.name, Proto: engine.HTTP,
 				Target: srv.URL, Timeout: 5 * time.Second,
 			})
 			if err != nil {

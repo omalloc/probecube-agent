@@ -1,8 +1,9 @@
 module github.com/omalloc/probecube-agent
 
-go 1.25.7
+go 1.26
 
 require (
+	github.com/chromedp/chromedp v0.16.0
 	github.com/google/wire v0.6.0
 	github.com/miekg/dns v1.1.72
 	github.com/nats-io/nats.go v1.52.0
@@ -16,8 +17,14 @@ require (
 )
 
 require (
+	github.com/chromedp/cdproto v0.0.0-20260714215040-dc233986426f // indirect
+	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
