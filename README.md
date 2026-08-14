@@ -45,13 +45,13 @@ At startup, the agent establishes its NATS identity from a persistent machine ID
 
 ## Supported probes
 
-| Protocol | Target format | What it measures | Runtime notes |
-| --- | --- | --- | --- |
-| ICMP | `example.com` or `1.1.1.1` | Echo RTT and sequence | Uses raw ICMP as root; otherwise uses unprivileged `udp4` ping where supported. IPv4 only. |
-| TCP | `example.com:443` | SYN response time; distinguishes SYN-ACK and RST | Raw IPv4 socket; requires root or `CAP_NET_RAW`. A RST still proves the host is reachable and is reported as alive. |
-| UDP | `host:port` | Send/read duration and byte counts | Sends task payload, or `PING` by default. A timeout after a successful send is reported as `Sent (no response)` because UDP is connectionless. |
+| Protocol     | Target format                                      | What it measures                                                                         | Runtime notes                                                                                                                                              |
+| ------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ICMP         | `example.com` or `1.1.1.1`                         | Echo RTT and sequence                                                                    | Uses raw ICMP as root; otherwise uses unprivileged `udp4` ping where supported. IPv4 only.                                                                 |
+| TCP          | `example.com:443`                                  | SYN response time; distinguishes SYN-ACK and RST                                         | Raw IPv4 socket; requires root or `CAP_NET_RAW`. A RST still proves the host is reachable and is reported as alive.                                        |
+| UDP          | `host:port`                                        | Send/read duration and byte counts                                                       | Sends task payload, or `PING` by default. A timeout after a successful send is reported as `Sent (no response)` because UDP is connectionless.             |
 | HTTP / HTTPS | Absolute URL, such as `https://example.com/health` | Total latency, DNS, connect, TLS, first-byte timing, HTTP status, and certificate expiry | Sends `GET`, disables keep-alive, follows Go's default redirect policy, and treats 2xx/3xx as success. TLS certificate verification is currently disabled. |
-| DNS | Domain name, such as `example.com` | Query RTT, response code, and IPv4 answers | Sends an A query. Set `metadata.server` to `host:port`; defaults to `8.8.8.8:53`. |
+| DNS          | Domain name, such as `example.com`                 | Query RTT, response code, and IPv4 answers                                               | Sends an A query. Set `metadata.server` to `host:port`; defaults to `8.8.8.8:53`.                                                                          |
 
 `Browser` exists in the shared protocol enum but no browser prober is registered yet. Such a task currently returns `Unsupported Protocol`.
 
@@ -131,17 +131,17 @@ Use `--network host` only when the deployment requires the agent to observe the 
 
 ## Configuration reference
 
-| Path | Type | Description |
-| --- | --- | --- |
-| `server.http.network` | string | Optional network passed to the Kratos HTTP server. |
-| `server.http.addr` | string | HTTP listener. `localhost:0` binds a random loopback port. No public routes are currently registered. |
-| `server.http.timeout` | duration | HTTP server timeout. |
-| `leafnode.endpoint` | list of strings | One or more NATS server URLs. |
-| `leafnode.nkeys` | string | Raw NKey seed used to sign the NATS connection. Leave empty only when the server allows unauthenticated clients. |
-| `worker.pool_size` | integer | Maximum number of probes executing concurrently. Must be positive. |
-| `worker.async` | boolean | Whether incoming tasks first enter the internal buffered queue. |
-| `worker.timeout` | duration | Reserved worker-level timeout in the current schema. Built-in probers use the timeout carried by each task. |
-| `worker.interval` | duration | Reserved synchronization interval in the current schema. |
+| Path                  | Type            | Description                                                                                                      |
+| --------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `server.http.network` | string          | Optional network passed to the Kratos HTTP server.                                                               |
+| `server.http.addr`    | string          | HTTP listener. `localhost:0` binds a random loopback port. No public routes are currently registered.            |
+| `server.http.timeout` | duration        | HTTP server timeout.                                                                                             |
+| `leafnode.endpoint`   | list of strings | One or more NATS server URLs.                                                                                    |
+| `leafnode.nkeys`      | string          | Raw NKey seed used to sign the NATS connection. Leave empty only when the server allows unauthenticated clients. |
+| `worker.pool_size`    | integer         | Maximum number of probes executing concurrently. Must be positive.                                               |
+| `worker.async`        | boolean         | Whether incoming tasks first enter the internal buffered queue.                                                  |
+| `worker.timeout`      | duration        | Reserved worker-level timeout in the current schema. Built-in probers use the timeout carried by each task.      |
+| `worker.interval`     | duration        | Reserved synchronization interval in the current schema.                                                         |
 
 Go-style durations such as `500ms`, `5s`, and `1m` are accepted.
 
@@ -149,13 +149,13 @@ Go-style durations such as `500ms`, `5s`, and `1m` are accepted.
 
 The agent exchanges Protocol Buffer payloads defined by [`probecube-console/api/message/v1`](https://github.com/omalloc/probecube-console/tree/main/api/message/v1).
 
-| Subject | Direction | Purpose |
-| --- | --- | --- |
-| `dialsys.probe.task` | Console → agent | Broadcast probe task; all subscribed agents receive it. |
-| `dialsys.probe.task.<node-sn>` | Console → agent | Task targeted to one persistent node serial number. |
-| `dialsys.probe.results` | Agent → console | Probe result. |
-| `dialsys.heartbeat` | Agent → console | Two-second heartbeat with `host`, public `ip`, private `priv_ip`, and `sn` headers. |
-| `dialsys.node.metadata` | Agent ↔ console | Request/reply lookup for the agent's node metadata, refreshed every minute. |
+| Subject                        | Direction       | Purpose                                                                             |
+| ------------------------------ | --------------- | ----------------------------------------------------------------------------------- |
+| `dialsys.probe.task`           | Console → agent | Broadcast probe task; all subscribed agents receive it.                             |
+| `dialsys.probe.task.<node-sn>` | Console → agent | Task targeted to one persistent node serial number.                                 |
+| `dialsys.probe.results`        | Agent → console | Probe result.                                                                       |
+| `dialsys.heartbeat`            | Agent → console | Two-second heartbeat with `host`, public `ip`, private `priv_ip`, and `sn` headers. |
+| `dialsys.node.metadata`        | Agent ↔ console | Request/reply lookup for the agent's node metadata, refreshed every minute.         |
 
 Published messages include `content-type: application/protobuf`, `schema-version: v1`, and the agent `sn`. The persistent SN is loaded from `/var/lib/probecube-agent/machine-id`; if the file is absent, the agent derives a machine identifier and attempts to write it there.
 

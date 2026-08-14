@@ -23,6 +23,11 @@ api:
 build:
 	@mkdir -p bin/ && CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=$(VERSION) -X github.com/omalloc/probecube-agent/pkg/embedbuf.decKey=$(PROBECUBE_DESKEY)" -o ./bin/ ./...
 
+.PHONY: test
+# test
+test:
+	go test ./...
+
 .PHONY: generate
 # generate
 generate:
