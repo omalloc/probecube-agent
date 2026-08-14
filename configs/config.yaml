@@ -3,8 +3,9 @@ server:
     addr: localhost:0
     timeout: 1s
 leafnode:
-  endpoint: # NAS服务器地址
+  endpoint: # NATS leafnode server address
     - "nats://your-nats-server:4222"
+  # nkeys 第一行为 NKey 种子(seed),第二行为对应的公钥(public key)
   nkeys: "YOUR_NKEY_SEED\nYOUR_NKEY_PUBLIC_KEY"
 worker:
   pool_size: 10 # 任务并发数

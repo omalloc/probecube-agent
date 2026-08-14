@@ -31,6 +31,8 @@ Thumbs.db
 *.key
 *.log
 bin/
+machine-id
+certs/
 
 # Develop tools
 .vscode/
