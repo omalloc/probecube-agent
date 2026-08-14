@@ -5,8 +5,8 @@ server:
 leafnode:
   endpoint: # NATS leafnode server address
     - "nats://your-nats-server:4222"
-  # nkeys 第一行为 NKey 种子(seed),第二行为对应的公钥(public key)
-  nkeys: "YOUR_NKEY_SEED\nYOUR_NKEY_PUBLIC_KEY"
+  # NKey Seed
+  nkeys: "YOUR_NKEY_SEED"
 worker:
   pool_size: 10 # 任务并发数
   timeout: 5s # 任务超时时间

@@ -27,22 +27,16 @@ func NewClient(c *conf.LeafNode) (*Client, func(), error) {
 		}),
 	)
 
-	// if bc.NatsServer.Secure.Enabled {
-	// 	opts = append(opts, nats.Secure(loadTLSConfig(
-	// 		bc.NatsServer.Secure.CertFile,
-	// 		bc.NatsServer.Secure.KeyFile,
-	// 		bc.NatsServer.Secure.CAFile)))
-	// }
-
 	if c.Nkeys != "" {
-		keyPair := strings.Split(c.Nkeys, "\n")
-		opts = append(opts, nats.Nkey(keyPair[1], func(b []byte) ([]byte, error) {
-			sign, err := nkeys.FromSeed([]byte(keyPair[0]))
-			if err != nil {
-				return nil, err
-			}
-			return sign.Sign(b)
-		}))
+		kp, err := nkeys.FromSeed([]byte(c.Nkeys))
+		if err != nil {
+			return nil, func() {}, err
+		}
+		pubKey, err := kp.PublicKey()
+		if err != nil {
+			return nil, func() {}, err
+		}
+		opts = append(opts, nats.Nkey(pubKey, kp.Sign))
 	}
 
 	nc, err := nats.Connect(urls, opts...)
