@@ -1,15 +1,13 @@
 module github.com/omalloc/probecube-agent
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/chromedp/chromedp v0.16.0
 	github.com/google/wire v0.6.0
 	github.com/miekg/dns v1.1.72
 	github.com/nats-io/nats.go v1.52.0
-	github.com/nats-io/nkeys v0.4.16
 	github.com/omalloc/contrib/v2 v2.0.1
-	github.com/omalloc/probecube-console v0.0.0-20260723170244-551703ad9fc8
 	github.com/pion/stun/v3 v3.1.6
 	go.einride.tech/aip v0.86.3
 	go.uber.org/automaxprocs v1.6.0
@@ -20,6 +18,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20260714215040-dc233986426f // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
@@ -29,7 +28,9 @@ require (
 	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20230326075908-cb1d2100619a // indirect
+	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
+	github.com/omalloc/probecube-api v0.0.0-20261020091653-e74ef484877c // indirect
 	github.com/pion/dtls/v3 v3.1.4 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/omalloc/probecube-console/api/message/v1"
+	v1 "github.com/omalloc/probecube-api/message/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 

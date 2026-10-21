@@ -10,7 +10,7 @@ ProbeCube Agent 是 ProbeCube 监控平台的分布式拨测执行端。你可�
 当前已实现 ICMP、TCP SYN、UDP、HTTP/HTTPS 和 DNS 拨测，并提供各协议对应的延迟与诊断元数据。
 
 > [!IMPORTANT]
-> 本项目仍在持续开发中。当前运行时要求在构建阶段嵌入经过 AES-GCM 加密的配置。构建可运行镜像前，请先阅读[配置与密钥](#配置与密钥)。
+> 本项目仍在持续开发中。Agent 在运行时从磁盘读取配置，并通过 mTLS 客户端证书接入 NATS。部署前请先阅读[配置与密钥](#配置与密钥)。
 
 ## 为什么选择 ProbeCube Agent？
 
@@ -59,10 +59,9 @@ ProbeCube Agent 是 ProbeCube 监控平台的分布式拨测执行端。你可�
 
 - 源码构建需要 Go 1.25.7 或兼容的更新工具链
 - 可访问的 NATS Server
-- 如果 NATS 启用了 NKey 认证，需要有效的 NKey Seed
+- mTLS 客户端证书、其私钥，以及签发 NATS 服务端证书的根 CA
 - TCP SYN 拨测需要 Linux 与 root/`CAP_NET_RAW`
-- 如需节点身份跨重启持久化，需要有权限创建 `/var/lib/probecube-agent/machine-id`
-- 加密后的 `cmd/probecube-agent/app.cert` 及其匹配的构建密钥
+- 如需序列号跨重启持久化，需要有权限创建 `/var/lib/probecube-agent/machine-id`
 
 ## 快速开始
 
@@ -78,8 +77,11 @@ server:
 
 leafnode:
   endpoint:
-    - "nats://nats.example.com:4222"
-  nkeys: "SU...YOUR_NKEY_SEED"
+    - "tls://nats.example.com:4222"
+  tls:
+    cert_file: /etc/probecube/tls/agent.crt
+    key_file: /etc/probecube/tls/agent.key
+    root_ca: /etc/probecube/tls/node-ca.pem
 
 worker:
   pool_size: 10
@@ -92,37 +94,46 @@ worker:
 
 ### 配置与密钥
 
-当前可执行文件不会在运行时读取 `configs/config.yaml`。发布流程必须完成以下工作：
+Agent 在启动时从磁盘读取配置（`-conf` 接受文件或目录）。**配置文件本身不含任何秘密**，
+可以全局可读：节点通过 mTLS 客户端证书向 NATS 证明身份，中心侧的 auth callout 服务
+从证书的 URI SAN（`spiffe://probecube/node/<uuid>`）推导节点身份，并为每条连接签发
+短期 user JWT。
 
-1. 使用 16、24 或 32 字节密钥，通过 AES-GCM 加密最终 YAML；
-2. 按 `nonce || ciphertext-and-tag` 的格式，将二进制结果保存为 `cmd/probecube-agent/app.cert`；
-3. 构建时通过 `PROBECUBE_DESKEY` 传入同一密钥的十六进制字符串。
+| 文件 | 是否含秘密 | 权限 |
+| --- | --- | --- |
+| `agent.yaml` | 否 | `0644` |
+| `agent.crt` | 否（公开证书） | `0644` |
+| `agent.key` | **是** | `0600`，属主为 agent 运行用户 |
+| `node-ca.pem` | 否 | `0644` |
 
-`*.cert` 与 `*.key` 均已加入 Git 忽略规则。切勿提交 NKey Seed 或加密密钥。
+二进制内不含任何敏感数据，因此构建期不需要秘密，也不再有 `PROBECUBE_DESKEY`。
+`leafnode.nkeys` 已废弃并被忽略。
+
+启动采用 fail-closed：缺少 `leafnode.tls` 配置块或证书文件不可读时进程直接退出，
+不会退化为未认证连接。
 
 ### 构建并运行
 
 ```bash
-PROBECUBE_DESKEY='<hex-encoded-aes-key>' make build
+make build
 sudo install -d -m 0755 /var/lib/probecube-agent
-sudo ./bin/probecube-agent -embed
+sudo ./bin/probecube-agent -conf /etc/probecube/agent.yaml
 ```
 
-进程正常启动后会连接 NATS 并开始发送心跳。如果程序在配置加载阶段退出，请确认 `app.cert` 使用的密钥与传给 `make build` 的密钥一致。
+进程正常启动后会连接 NATS 并开始发送心跳。
 
 ### Docker
 
-Dockerfile 使用 BuildKit Secret，避免将加密密钥作为镜像构建参数持久化：
+构建期无秘密。配置与证书在运行期挂载：
 
 ```bash
-export PROBECUBE_DESKEY='<hex-encoded-aes-key>'
-DOCKER_BUILDKIT=1 docker build \
-  --secret id=appkey,env=PROBECUBE_DESKEY \
-  -t probecube-agent:local .
+docker build -t probecube-agent:local .
 
 docker run --rm \
   --name probecube-agent \
   --cap-add NET_RAW \
+  -v /etc/probecube/agent.yaml:/data/conf/agent.yaml:ro \
+  -v /etc/probecube/tls:/data/tls:ro \
   -v probecube-agent-state:/var/lib/probecube-agent \
   probecube-agent:local
 ```
@@ -147,7 +158,7 @@ docker run --rm \
 
 ## 消息契约
 
-Agent 交换的 Protocol Buffer Payload 定义在 [`probecube-console/api/message/v1`](https://github.com/omalloc/probecube-console/tree/main/api/message/v1)。
+Agent 交换的 Protocol Buffer Payload 定义在 [`probecube-api/message/v1`](https://github.com/omalloc/probecube-api/tree/main/message/v1)。
 
 | Subject | 方向 | 用途 |
 | --- | --- | --- |
@@ -196,19 +207,20 @@ internal/engine/            任务/结果模型、注册表与采集器
 internal/engine/probers/    内置协议实现
 internal/messaging/         NATS 客户端、发布订阅与节点身份
 internal/server/            HTTP Server 与并发受控的任务调度器
-pkg/embedbuf/               加密嵌入配置的数据源
 pkg/netinfo/                基于 STUN 的公网/本地 IP 发现
 ```
 
 ## 开发
 
-仅编译和测试时，创建一个空的、被 Git 忽略的嵌入文件即可；真正运行进程仍需要有效的加密文件：
+编译与测试不依赖任何配置或证书：
 
 ```bash
-touch cmd/probecube-agent/app.cert
 go test ./...
 go test -race ./...
 ```
+
+针对真实 NATS + auth callout 的集成测试默认跳过，设置 `PROBECUBE_E2E_NATS`
+与证书路径后启用，参见 `internal/messaging/e2e_test.go`。
 
 常用生成与构建命令：
 
@@ -217,7 +229,7 @@ make init       # 安装 Wire 与 Buf
 make config     # 重新生成配置 Protobuf
 make api        # 重新生成 API/OpenAPI 产物
 make all        # 执行全部生成步骤与 go mod tidy
-make build      # 构建 bin/probecube-agent（需要 PROBECUBE_DESKEY）
+make build      # 构建 bin/probecube-agent（无构建期秘密）
 ```
 
 不要手工修改生成的 `*.pb.go` 与 `wire_gen.go`。新增 Go 源码注释应遵循项目现有的中文注释约定。

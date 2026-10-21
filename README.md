@@ -10,7 +10,7 @@ ProbeCube Agent is the distributed probing worker for the ProbeCube monitoring p
 It currently provides ICMP, TCP SYN, UDP, HTTP/HTTPS, and DNS probes, including protocol-specific latency and diagnostic metadata.
 
 > [!IMPORTANT]
-> This repository is under active development. The current runtime expects an AES-GCM-encrypted configuration embedded at build time. Read [Configuration and secrets](#configuration-and-secrets) before building a runnable image.
+> This repository is under active development. The agent reads its configuration from disk at runtime and authenticates to NATS with an mTLS client certificate. Read [Configuration and secrets](#configuration-and-secrets) before deploying.
 
 ## Why ProbeCube Agent?
 
@@ -59,10 +59,9 @@ At startup, the agent establishes its NATS identity from a persistent machine ID
 
 - Go 1.25.7 or newer compatible toolchain for source builds
 - A reachable NATS server
-- A valid NKey seed if the NATS deployment requires NKey authentication
+- An mTLS client certificate, its private key and the root CA that signed the NATS server certificate
 - Linux and root/`CAP_NET_RAW` for TCP SYN probing
-- Permission to create `/var/lib/probecube-agent/machine-id` if node identity must persist across restarts
-- An encrypted `cmd/probecube-agent/app.cert` and its matching build-time key
+- Permission to create `/var/lib/probecube-agent/machine-id` if the serial number must persist across restarts
 
 ## Quick start
 
@@ -78,8 +77,11 @@ server:
 
 leafnode:
   endpoint:
-    - "nats://nats.example.com:4222"
-  nkeys: "SU...YOUR_NKEY_SEED"
+    - "tls://nats.example.com:4222"
+  tls:
+    cert_file: /etc/probecube/tls/agent.crt
+    key_file: /etc/probecube/tls/agent.key
+    root_ca: /etc/probecube/tls/node-ca.pem
 
 worker:
   pool_size: 10
@@ -92,37 +94,47 @@ worker:
 
 ### Configuration and secrets
 
-The executable does not currently read `configs/config.yaml` at runtime. Your release process must:
+The agent reads its configuration from disk at startup (`-conf` accepts a file or a
+directory). **The configuration file contains no secrets** and may be world-readable:
+the node authenticates to NATS with an mTLS client certificate, and the centre's
+auth callout service derives the node identity from that certificate's URI SAN
+(`spiffe://probecube/node/<uuid>`) before issuing a short-lived user JWT per connection.
 
-1. encrypt the final YAML with AES-GCM using a 16-, 24-, or 32-byte key;
-2. store the binary output as `cmd/probecube-agent/app.cert` in the format `nonce || ciphertext-and-tag`;
-3. pass the same key as a hexadecimal string through `PROBECUBE_DESKEY` when building.
+| File | Secret | Permissions |
+| --- | --- | --- |
+| `agent.yaml` | no | `0644` |
+| `agent.crt` | no (public certificate) | `0644` |
+| `agent.key` | **yes** | `0600`, owned by the agent user |
+| `node-ca.pem` | no | `0644` |
 
-Both `*.cert` and `*.key` are ignored by Git. Never commit the NKey seed or encryption key.
+Nothing sensitive is compiled into the binary, so there is no build-time secret and no
+`PROBECUBE_DESKEY`. `leafnode.nkeys` is deprecated and ignored.
+
+Startup fails closed: a missing `leafnode.tls` block or an unreachable certificate file
+aborts the process rather than falling back to an unauthenticated connection.
 
 ### Build and run
 
 ```bash
-PROBECUBE_DESKEY='<hex-encoded-aes-key>' make build
+make build
 sudo install -d -m 0755 /var/lib/probecube-agent
-sudo ./bin/probecube-agent -embed
+sudo ./bin/probecube-agent -conf /etc/probecube/agent.yaml
 ```
 
-The process should connect to NATS and begin publishing heartbeats. If it exits during configuration loading, verify that `app.cert` was encrypted with the key supplied to `make build`.
+The process should connect to NATS and begin publishing heartbeats.
 
 ### Docker
 
-The Dockerfile uses BuildKit secrets so the encryption key is not persisted as an image build argument:
+There are no build secrets. Mount the configuration and certificates at runtime:
 
 ```bash
-export PROBECUBE_DESKEY='<hex-encoded-aes-key>'
-DOCKER_BUILDKIT=1 docker build \
-  --secret id=appkey,env=PROBECUBE_DESKEY \
-  -t probecube-agent:local .
+docker build -t probecube-agent:local .
 
 docker run --rm \
   --name probecube-agent \
   --cap-add NET_RAW \
+  -v /etc/probecube/agent.yaml:/data/conf/agent.yaml:ro \
+  -v /etc/probecube/tls:/data/tls:ro \
   -v probecube-agent-state:/var/lib/probecube-agent \
   probecube-agent:local
 ```
@@ -137,7 +149,10 @@ Use `--network host` only when the deployment requires the agent to observe the 
 | `server.http.addr`    | string          | HTTP listener. `localhost:0` binds a random loopback port. No public routes are currently registered.            |
 | `server.http.timeout` | duration        | HTTP server timeout.                                                                                             |
 | `leafnode.endpoint`   | list of strings | One or more NATS server URLs.                                                                                    |
-| `leafnode.nkeys`      | string          | Raw NKey seed used to sign the NATS connection. Leave empty only when the server allows unauthenticated clients. |
+| `leafnode.tls.cert_file` | string | PEM client certificate. Its URI SAN carries the node identity. |
+| `leafnode.tls.key_file` | string | PEM client private key. Keep at `0600`. |
+| `leafnode.tls.root_ca` | string | Root CA used to verify the NATS server certificate. |
+| `leafnode.nkeys` | string | **Deprecated and ignored.** Retained only for config compatibility. |
 | `worker.pool_size`    | integer         | Maximum number of probes executing concurrently. Must be positive.                                               |
 | `worker.async`        | boolean         | Whether incoming tasks first enter the internal buffered queue.                                                  |
 | `worker.timeout`      | duration        | Reserved worker-level timeout in the current schema. Built-in probers use the timeout carried by each task.      |
@@ -147,7 +162,7 @@ Go-style durations such as `500ms`, `5s`, and `1m` are accepted.
 
 ## Messaging contract
 
-The agent exchanges Protocol Buffer payloads defined by [`probecube-console/api/message/v1`](https://github.com/omalloc/probecube-console/tree/main/api/message/v1).
+The agent exchanges Protocol Buffer payloads defined by [`probecube-api/message/v1`](https://github.com/omalloc/probecube-api/tree/main/message/v1).
 
 | Subject                        | Direction       | Purpose                                                                             |
 | ------------------------------ | --------------- | ----------------------------------------------------------------------------------- |
@@ -196,19 +211,21 @@ internal/engine/            task/result model, registry, collector
 internal/engine/probers/    built-in protocol implementations
 internal/messaging/         NATS client, publisher, subscriber, node identity
 internal/server/            HTTP server and bounded task scheduler
-pkg/embedbuf/               encrypted embedded-config source
 pkg/netinfo/                STUN-based public/local IP discovery
 ```
 
 ## Development
 
-For compile-only work, an empty ignored embed file is sufficient; a valid encrypted file is required to run the process:
+The agent builds and tests without any configuration or certificates:
 
 ```bash
-touch cmd/probecube-agent/app.cert
 go test ./...
 go test -race ./...
 ```
+
+An integration test against a live NATS server with auth callout is skipped by default
+and enabled by setting `PROBECUBE_E2E_NATS` plus the certificate paths; see
+`internal/messaging/e2e_test.go`.
 
 Useful generation and build commands:
 
@@ -217,7 +234,7 @@ make init       # install Wire and Buf
 make config     # regenerate configuration protobufs
 make api        # regenerate API/OpenAPI artifacts
 make all        # run all generation steps and go mod tidy
-make build      # build bin/probecube-agent (requires PROBECUBE_DESKEY)
+make build      # build bin/probecube-agent (no build-time secrets)
 ```
 
 Generated `*.pb.go` and `wire_gen.go` files should not be edited by hand. New Go source comments should follow the project's existing Chinese-comment convention.
@@ -257,7 +274,7 @@ Issues and pull requests are welcome. Before submitting a change:
 4. regenerate code through the Make targets rather than editing generated files;
 5. use a Conventional Commit prefix such as `feat:`, `fix:`, `docs:`, or `test:`.
 
-For security-sensitive reports, avoid posting credentials, embedded configuration, node identifiers, or private network details in a public issue.
+For security-sensitive reports, avoid posting credentials, client certificate keys, node identifiers, or private network details in a public issue.
 
 ## License
 

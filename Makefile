@@ -20,8 +20,10 @@ api:
 
 .PHONY: build
 # build
+# No build-time secrets: the agent reads its configuration from disk and
+# authenticates with the mTLS client certificate referenced by leafnode.tls.
 build:
-	@mkdir -p bin/ && CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=$(VERSION) -X github.com/omalloc/probecube-agent/pkg/embedbuf.decKey=$(PROBECUBE_DESKEY)" -o ./bin/ ./...
+	@mkdir -p bin/ && CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=$(VERSION)" -o ./bin/ ./...
 
 .PHONY: test
 # test

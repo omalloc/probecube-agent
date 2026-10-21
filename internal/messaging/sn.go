@@ -10,7 +10,7 @@ import (
 
 const SNFilePath = "/var/lib/probecube-agent/machine-id"
 
-func loadSN() string {
+func LoadSN() string {
 	buf, err := os.ReadFile(SNFilePath)
 	if err != nil {
 		machine := machineid.Load()

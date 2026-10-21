@@ -27,8 +27,35 @@ message Server {
 }
 
 message LeafNode {
+  message TLS {
+    // PEM 编码的客户端证书。与 auth callout 配合时，节点身份来自该证书的
+    // URI SAN（spiffe://probecube/node/<uuid>）。
+    string cert_file = 1;
+    // PEM 编码的客户端私钥。
+    string key_file = 2;
+    // 校验 NATS 服务端证书所用的根 CA。
+    string root_ca = 3;
+  }
+
   repeated string endpoint = 1;
-  string nkeys = 2;
+  // 已废弃：目标形态为 mTLS + auth callout，不再使用 NKey seed。
+  // 过渡期仍可配置，启动时会打印 deprecation 警告；未配置 TLS 时不会生效。
+  string nkeys = 2 [deprecated = true];
+  // 必填。没有该配置时进程启动失败，避免退化为明文连接。
+  TLS tls = 3;
+  // enrollment 描述首次上线如何用一次性 token 换取证书。已持有证书的节点
+  // 不需要该配置。
+  Enrollment enrollment = 4;
+}
+
+message Enrollment {
+  // url 是控制面签发接口地址，例如 https://console.example.com/v1/node/enroll
+  string url = 1;
+  // token 是运维签发的一次性令牌。兑换成功后应视为已作废。
+  string token = 2;
+  // token_file 允许从文件读取 token，避免出现在命令行或镜像层里。
+  // 与 token 同时配置时以 token_file 为准。
+  string token_file = 3;
 }
 
 message Worker {

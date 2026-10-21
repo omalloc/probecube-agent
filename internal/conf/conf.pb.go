@@ -135,9 +135,18 @@ func (x *Server) GetGrpc() *Server_GRPC {
 }
 
 type LeafNode struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Endpoint      []string               `protobuf:"bytes,1,rep,name=endpoint,proto3" json:"endpoint,omitempty"`
-	Nkeys         string                 `protobuf:"bytes,2,opt,name=nkeys,proto3" json:"nkeys,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Endpoint []string               `protobuf:"bytes,1,rep,name=endpoint,proto3" json:"endpoint,omitempty"`
+	// 已废弃：目标形态为 mTLS + auth callout，不再使用 NKey seed。
+	// 过渡期仍可配置，启动时会打印 deprecation 警告；未配置 TLS 时不会生效。
+	//
+	// Deprecated: Marked as deprecated in conf/conf.proto.
+	Nkeys string `protobuf:"bytes,2,opt,name=nkeys,proto3" json:"nkeys,omitempty"`
+	// 必填。没有该配置时进程启动失败，避免退化为明文连接。
+	Tls *LeafNode_TLS `protobuf:"bytes,3,opt,name=tls,proto3" json:"tls,omitempty"`
+	// enrollment 描述首次上线如何用一次性 token 换取证书。已持有证书的节点
+	// 不需要该配置。
+	Enrollment    *Enrollment `protobuf:"bytes,4,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -179,9 +188,88 @@ func (x *LeafNode) GetEndpoint() []string {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in conf/conf.proto.
 func (x *LeafNode) GetNkeys() string {
 	if x != nil {
 		return x.Nkeys
+	}
+	return ""
+}
+
+func (x *LeafNode) GetTls() *LeafNode_TLS {
+	if x != nil {
+		return x.Tls
+	}
+	return nil
+}
+
+func (x *LeafNode) GetEnrollment() *Enrollment {
+	if x != nil {
+		return x.Enrollment
+	}
+	return nil
+}
+
+type Enrollment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// url 是控制面签发接口地址，例如 https://console.example.com/v1/node/enroll
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// token 是运维签发的一次性令牌。兑换成功后应视为已作废。
+	Token string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	// token_file 允许从文件读取 token，避免出现在命令行或镜像层里。
+	// 与 token 同时配置时以 token_file 为准。
+	TokenFile     string `protobuf:"bytes,3,opt,name=token_file,json=tokenFile,proto3" json:"token_file,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Enrollment) Reset() {
+	*x = Enrollment{}
+	mi := &file_conf_conf_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Enrollment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Enrollment) ProtoMessage() {}
+
+func (x *Enrollment) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_conf_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Enrollment.ProtoReflect.Descriptor instead.
+func (*Enrollment) Descriptor() ([]byte, []int) {
+	return file_conf_conf_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Enrollment) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Enrollment) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *Enrollment) GetTokenFile() string {
+	if x != nil {
+		return x.TokenFile
 	}
 	return ""
 }
@@ -198,7 +286,7 @@ type Worker struct {
 
 func (x *Worker) Reset() {
 	*x = Worker{}
-	mi := &file_conf_conf_proto_msgTypes[3]
+	mi := &file_conf_conf_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -210,7 +298,7 @@ func (x *Worker) String() string {
 func (*Worker) ProtoMessage() {}
 
 func (x *Worker) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[3]
+	mi := &file_conf_conf_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -223,7 +311,7 @@ func (x *Worker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Worker.ProtoReflect.Descriptor instead.
 func (*Worker) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{3}
+	return file_conf_conf_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Worker) GetPoolSize() int32 {
@@ -265,7 +353,7 @@ type Server_HTTP struct {
 
 func (x *Server_HTTP) Reset() {
 	*x = Server_HTTP{}
-	mi := &file_conf_conf_proto_msgTypes[4]
+	mi := &file_conf_conf_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -277,7 +365,7 @@ func (x *Server_HTTP) String() string {
 func (*Server_HTTP) ProtoMessage() {}
 
 func (x *Server_HTTP) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[4]
+	mi := &file_conf_conf_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -325,7 +413,7 @@ type Server_GRPC struct {
 
 func (x *Server_GRPC) Reset() {
 	*x = Server_GRPC{}
-	mi := &file_conf_conf_proto_msgTypes[5]
+	mi := &file_conf_conf_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +425,7 @@ func (x *Server_GRPC) String() string {
 func (*Server_GRPC) ProtoMessage() {}
 
 func (x *Server_GRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[5]
+	mi := &file_conf_conf_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -374,6 +462,70 @@ func (x *Server_GRPC) GetTimeout() *durationpb.Duration {
 	return nil
 }
 
+type LeafNode_TLS struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// PEM 编码的客户端证书。与 auth callout 配合时，节点身份来自该证书的
+	// URI SAN（spiffe://probecube/node/<uuid>）。
+	CertFile string `protobuf:"bytes,1,opt,name=cert_file,json=certFile,proto3" json:"cert_file,omitempty"`
+	// PEM 编码的客户端私钥。
+	KeyFile string `protobuf:"bytes,2,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"`
+	// 校验 NATS 服务端证书所用的根 CA。
+	RootCa        string `protobuf:"bytes,3,opt,name=root_ca,json=rootCa,proto3" json:"root_ca,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeafNode_TLS) Reset() {
+	*x = LeafNode_TLS{}
+	mi := &file_conf_conf_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeafNode_TLS) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeafNode_TLS) ProtoMessage() {}
+
+func (x *LeafNode_TLS) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_conf_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeafNode_TLS.ProtoReflect.Descriptor instead.
+func (*LeafNode_TLS) Descriptor() ([]byte, []int) {
+	return file_conf_conf_proto_rawDescGZIP(), []int{2, 0}
+}
+
+func (x *LeafNode_TLS) GetCertFile() string {
+	if x != nil {
+		return x.CertFile
+	}
+	return ""
+}
+
+func (x *LeafNode_TLS) GetKeyFile() string {
+	if x != nil {
+		return x.KeyFile
+	}
+	return ""
+}
+
+func (x *LeafNode_TLS) GetRootCa() string {
+	if x != nil {
+		return x.RootCa
+	}
+	return ""
+}
+
 var File_conf_conf_proto protoreflect.FileDescriptor
 
 const file_conf_conf_proto_rawDesc = "" +
@@ -394,10 +546,24 @@ const file_conf_conf_proto_rawDesc = "" +
 	"\x04GRPC\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\x123\n" +
-	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"<\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\xfc\x01\n" +
 	"\bLeafNode\x12\x1a\n" +
-	"\bendpoint\x18\x01 \x03(\tR\bendpoint\x12\x14\n" +
-	"\x05nkeys\x18\x02 \x01(\tR\x05nkeys\"\xa7\x01\n" +
+	"\bendpoint\x18\x01 \x03(\tR\bendpoint\x12\x18\n" +
+	"\x05nkeys\x18\x02 \x01(\tB\x02\x18\x01R\x05nkeys\x12*\n" +
+	"\x03tls\x18\x03 \x01(\v2\x18.kratos.api.LeafNode.TLSR\x03tls\x126\n" +
+	"\n" +
+	"enrollment\x18\x04 \x01(\v2\x16.kratos.api.EnrollmentR\n" +
+	"enrollment\x1aV\n" +
+	"\x03TLS\x12\x1b\n" +
+	"\tcert_file\x18\x01 \x01(\tR\bcertFile\x12\x19\n" +
+	"\bkey_file\x18\x02 \x01(\tR\akeyFile\x12\x17\n" +
+	"\aroot_ca\x18\x03 \x01(\tR\x06rootCa\"S\n" +
+	"\n" +
+	"Enrollment\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\x12\x1d\n" +
+	"\n" +
+	"token_file\x18\x03 \x01(\tR\ttokenFile\"\xa7\x01\n" +
 	"\x06Worker\x12\x1b\n" +
 	"\tpool_size\x18\x01 \x01(\x05R\bpoolSize\x12\x14\n" +
 	"\x05async\x18\x02 \x01(\bR\x05async\x123\n" +
@@ -416,31 +582,35 @@ func file_conf_conf_proto_rawDescGZIP() []byte {
 	return file_conf_conf_proto_rawDescData
 }
 
-var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_conf_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),           // 0: kratos.api.Bootstrap
 	(*Server)(nil),              // 1: kratos.api.Server
 	(*LeafNode)(nil),            // 2: kratos.api.LeafNode
-	(*Worker)(nil),              // 3: kratos.api.Worker
-	(*Server_HTTP)(nil),         // 4: kratos.api.Server.HTTP
-	(*Server_GRPC)(nil),         // 5: kratos.api.Server.GRPC
-	(*durationpb.Duration)(nil), // 6: google.protobuf.Duration
+	(*Enrollment)(nil),          // 3: kratos.api.Enrollment
+	(*Worker)(nil),              // 4: kratos.api.Worker
+	(*Server_HTTP)(nil),         // 5: kratos.api.Server.HTTP
+	(*Server_GRPC)(nil),         // 6: kratos.api.Server.GRPC
+	(*LeafNode_TLS)(nil),        // 7: kratos.api.LeafNode.TLS
+	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
 }
 var file_conf_conf_proto_depIdxs = []int32{
-	1, // 0: kratos.api.Bootstrap.server:type_name -> kratos.api.Server
-	2, // 1: kratos.api.Bootstrap.leafnode:type_name -> kratos.api.LeafNode
-	3, // 2: kratos.api.Bootstrap.worker:type_name -> kratos.api.Worker
-	4, // 3: kratos.api.Server.http:type_name -> kratos.api.Server.HTTP
-	5, // 4: kratos.api.Server.grpc:type_name -> kratos.api.Server.GRPC
-	6, // 5: kratos.api.Worker.timeout:type_name -> google.protobuf.Duration
-	6, // 6: kratos.api.Worker.interval:type_name -> google.protobuf.Duration
-	6, // 7: kratos.api.Server.HTTP.timeout:type_name -> google.protobuf.Duration
-	6, // 8: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	1,  // 0: kratos.api.Bootstrap.server:type_name -> kratos.api.Server
+	2,  // 1: kratos.api.Bootstrap.leafnode:type_name -> kratos.api.LeafNode
+	4,  // 2: kratos.api.Bootstrap.worker:type_name -> kratos.api.Worker
+	5,  // 3: kratos.api.Server.http:type_name -> kratos.api.Server.HTTP
+	6,  // 4: kratos.api.Server.grpc:type_name -> kratos.api.Server.GRPC
+	7,  // 5: kratos.api.LeafNode.tls:type_name -> kratos.api.LeafNode.TLS
+	3,  // 6: kratos.api.LeafNode.enrollment:type_name -> kratos.api.Enrollment
+	8,  // 7: kratos.api.Worker.timeout:type_name -> google.protobuf.Duration
+	8,  // 8: kratos.api.Worker.interval:type_name -> google.protobuf.Duration
+	8,  // 9: kratos.api.Server.HTTP.timeout:type_name -> google.protobuf.Duration
+	8,  // 10: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_conf_conf_proto_init() }
@@ -454,7 +624,7 @@ func file_conf_conf_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_conf_conf_proto_rawDesc), len(file_conf_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

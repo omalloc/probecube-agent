@@ -12,7 +12,7 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 	"github.com/omalloc/probecube-agent/internal/messaging"
 	"github.com/omalloc/probecube-agent/pkg/netinfo"
-	v1 "github.com/omalloc/probecube-console/api/message/v1"
+	v1 "github.com/omalloc/probecube-api/message/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -74,7 +74,11 @@ func (c *Collector) Start(ctx context.Context) error {
 
 	go c.requestNodeMetadata(ctx)
 
-	c.subscribes(ctx)
+	// Fail fast when the task subscription cannot be established: an agent that
+	// silently runs without it looks healthy while receiving no work.
+	if err := c.subscribes(ctx); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -84,7 +88,7 @@ func (c *Collector) Stop(context.Context) error {
 	return nil
 }
 
-func (c *Collector) subscribes(ctx context.Context) {
+func (c *Collector) subscribes(ctx context.Context) error {
 	handler := func(sctx context.Context, _ messaging.Header, payload []byte) error {
 		var message v1.TaskMessage
 		if err := proto.Unmarshal(payload, &message); err != nil {
@@ -102,10 +106,14 @@ func (c *Collector) subscribes(ctx context.Context) {
 		return nil
 	}
 
-	// Keep the shared subject for backwards-compatible broadcast tasks and add
-	// the node-specific subject used by NodeSelector dispatch.
-	c.subscriber.Subscribe(ctx, DialSysProbeTaskSubject, handler)
-	c.subscriber.Subscribe(ctx, DialSysProbeTaskSubject+"."+c.nodeSN, handler)
+	// Only the node-specific subject is subscribed. Broadcasting every task to
+	// every agent is both a cross-node delivery risk and incompatible with the
+	// subject-level permissions the auth callout service grants, which allow
+	// subscribing to dialsys.probe.task.<this node> and nothing wider.
+	if err := c.subscriber.Subscribe(ctx, DialSysProbeTaskSubject+"."+c.nodeSN, handler); err != nil {
+		return fmt.Errorf("subscribe probe task subject: %w", err)
+	}
+	return nil
 }
 
 func (c *Collector) heartbeat(ctx context.Context) {

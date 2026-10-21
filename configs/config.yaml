@@ -3,10 +3,25 @@ server:
     addr: localhost:0
     timeout: 1s
 leafnode:
-  endpoint: # NATS leafnode server address
-    - "nats://your-nats-server:4222"
-  # 设置 NKey 种子(seed)以启用认证;留空为明文连接(仅限内网)
-  nkeys: ""
+  endpoint:
+    - "tls://your-nats-server:4222"
+  # The agent authenticates with an mTLS client certificate. There is no NKey
+  # seed and no credentials file: the centre's auth callout service derives the
+  # node identity from the certificate's URI SAN and issues a short-lived user
+  # JWT per connection.
+  #
+  # This file therefore holds no secrets. Keep it world-readable; keep the
+  # certificate key at 0600.
+  tls:
+    cert_file: /etc/probecube/tls/agent.crt
+    key_file: /etc/probecube/tls/agent.key
+    root_ca: /etc/probecube/tls/node-ca.pem
+  # First-boot bootstrap. Only used when no client certificate exists at
+  # tls.cert_file. The token is single-use and expires; after a successful
+  # exchange the agent has a certificate and never needs it again.
+  # enrollment:
+  #   url: https://console.example.com/v1/node/enroll
+  #   token_file: /etc/probecube/enrollment.token
 worker:
   pool_size: 10 # 任务并发数
   timeout: 5s # 任务超时时间

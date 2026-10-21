@@ -31,7 +31,13 @@ type Publisher interface {
 type Subscriber interface {
 	Ready
 
-	Subscribe(ctx context.Context, subject string, handler Handler)
+	// Subscribe returns an error when the subscription could not be created, so
+	// callers can fail fast instead of running without their task subscription.
+	//
+	// Note that NATS reports permission violations asynchronously: a broker that
+	// rejects the subject surfaces the error through the connection's
+	// ErrorHandler rather than through this return value.
+	Subscribe(ctx context.Context, subject string, handler Handler) error
 	Unsubscribe(ctx context.Context, subject string)
 }
 
@@ -134,15 +140,17 @@ func NewSubscriber(conn *Client, logger *slog.Logger) Subscriber {
 	return &natsSubscriber{log: logger, conn: conn, subjects: make(map[string]*nats.Subscription)}
 }
 
-func (r *natsSubscriber) Subscribe(ctx context.Context, subject string, handler Handler) {
+func (r *natsSubscriber) Subscribe(ctx context.Context, subject string, handler Handler) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if subscribe, ok := r.subjects[subject]; ok {
+		// Unsubscribe the previous incarnation before replacing it so the map
+		// never holds a stale entry.
 		if err := subscribe.Unsubscribe(); err != nil {
-			r.log.ErrorContext(ctx, "Unsubscribe failed", "subject", subject, "err", err)
-			return
+			r.log.WarnContext(ctx, "replacing existing subscription failed", "subject", subject, "err", err)
 		}
+		delete(r.subjects, subject)
 	}
 
 	sub, err := r.conn.Subscribe(subject, func(msg *nats.Msg) {
@@ -152,9 +160,10 @@ func (r *natsSubscriber) Subscribe(ctx context.Context, subject string, handler 
 	})
 	if err != nil {
 		r.log.ErrorContext(ctx, "Subscribe failed", "subject", subject, "err", err)
-		return
+		return fmt.Errorf("subscribe %s: %w", subject, err)
 	}
 	r.subjects[subject] = sub
+	return nil
 }
 
 func (r *natsSubscriber) Unsubscribe(ctx context.Context, subject string) {
@@ -166,6 +175,7 @@ func (r *natsSubscriber) Unsubscribe(ctx context.Context, subject string) {
 			r.log.ErrorContext(ctx, "Unsubscribe failed", "subject", subject, "err", err)
 			return
 		}
+		delete(r.subjects, subject)
 	}
 }
 

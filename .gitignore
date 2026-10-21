@@ -38,3 +38,8 @@ certs/
 .vscode/
 .idea/
 *.swp
+
+# Probecube generate file or cert
+configs/
+configs/tls
+!configs/config.yaml
