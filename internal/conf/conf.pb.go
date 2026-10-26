@@ -24,9 +24,10 @@ const (
 
 type Bootstrap struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Server        *Server                `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
-	Leafnode      *LeafNode              `protobuf:"bytes,2,opt,name=leafnode,proto3" json:"leafnode,omitempty"`
-	Worker        *Worker                `protobuf:"bytes,3,opt,name=worker,proto3" json:"worker,omitempty"`
+	Workdir       string                 `protobuf:"bytes,1,opt,name=workdir,proto3" json:"workdir,omitempty"`
+	Server        *Server                `protobuf:"bytes,2,opt,name=server,proto3" json:"server,omitempty"`
+	Leafnode      *LeafNode              `protobuf:"bytes,3,opt,name=leafnode,proto3" json:"leafnode,omitempty"`
+	Worker        *Worker                `protobuf:"bytes,4,opt,name=worker,proto3" json:"worker,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -59,6 +60,13 @@ func (x *Bootstrap) ProtoReflect() protoreflect.Message {
 // Deprecated: Use Bootstrap.ProtoReflect.Descriptor instead.
 func (*Bootstrap) Descriptor() ([]byte, []int) {
 	return file_conf_conf_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Bootstrap) GetWorkdir() string {
+	if x != nil {
+		return x.Workdir
+	}
+	return ""
 }
 
 func (x *Bootstrap) GetServer() *Server {
@@ -531,11 +539,12 @@ var File_conf_conf_proto protoreflect.FileDescriptor
 const file_conf_conf_proto_rawDesc = "" +
 	"\n" +
 	"\x0fconf/conf.proto\x12\n" +
-	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\"\x95\x01\n" +
-	"\tBootstrap\x12*\n" +
-	"\x06server\x18\x01 \x01(\v2\x12.kratos.api.ServerR\x06server\x120\n" +
-	"\bleafnode\x18\x02 \x01(\v2\x14.kratos.api.LeafNodeR\bleafnode\x12*\n" +
-	"\x06worker\x18\x03 \x01(\v2\x12.kratos.api.WorkerR\x06worker\"\xb8\x02\n" +
+	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\"\xaf\x01\n" +
+	"\tBootstrap\x12\x18\n" +
+	"\aworkdir\x18\x01 \x01(\tR\aworkdir\x12*\n" +
+	"\x06server\x18\x02 \x01(\v2\x12.kratos.api.ServerR\x06server\x120\n" +
+	"\bleafnode\x18\x03 \x01(\v2\x14.kratos.api.LeafNodeR\bleafnode\x12*\n" +
+	"\x06worker\x18\x04 \x01(\v2\x12.kratos.api.WorkerR\x06worker\"\xb8\x02\n" +
 	"\x06Server\x12+\n" +
 	"\x04http\x18\x01 \x01(\v2\x17.kratos.api.Server.HTTPR\x04http\x12+\n" +
 	"\x04grpc\x18\x02 \x01(\v2\x17.kratos.api.Server.GRPCR\x04grpc\x1ai\n" +

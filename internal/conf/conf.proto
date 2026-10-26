@@ -6,9 +6,10 @@ import "google/protobuf/duration.proto";
 option go_package = "github.com/omalloc/probecube-agent/internal/conf;conf";
 
 message Bootstrap {
-  Server server = 1;
-  LeafNode leafnode = 2;
-  Worker worker = 3;
+  string workdir = 1;
+  Server server = 2;
+  LeafNode leafnode = 3;
+  Worker worker = 4;
 }
 
 message Server {
