@@ -95,17 +95,18 @@ worker:
 ### Configuration and secrets
 
 The agent reads its configuration from disk at startup (`-conf` accepts a file or a
-directory). **The configuration file contains no secrets** and may be world-readable:
+directory). Keep credentials out of this file so it may be world-readable:
 the node authenticates to NATS with an mTLS client certificate, and the centre's
 auth callout service derives the node identity from that certificate's URI SAN
 (`spiffe://probecube/node/<uuid>`) before issuing a short-lived user JWT per connection.
 
 | File | Secret | Permissions |
 | --- | --- | --- |
-| `agent.yaml` | no | `0644` |
+| `agent.yaml` | no, when credentials are stored separately | `0644` |
 | `agent.crt` | no (public certificate) | `0644` |
 | `agent.key` | **yes** | `0600`, owned by the agent user |
 | `node-ca.pem` | no | `0644` |
+| `enrollment.token` | **yes** (per-node, single-use) | `0600` |
 
 Nothing sensitive is compiled into the binary, so there is no build-time secret and no
 `PROBECUBE_DESKEY`. `leafnode.nkeys` is deprecated and ignored.
@@ -125,21 +126,72 @@ The process should connect to NATS and begin publishing heartbeats.
 
 ### Docker
 
-There are no build secrets. Mount the configuration and certificates at runtime:
+The image includes the versioned `configs/config.prod.yaml` and the public node
+CA. Node tokens, client certificates and private keys are obtained at runtime.
+For a local build, prepare a directory containing only `node-ca.pem`:
 
 ```bash
-docker build -t probecube-agent:local .
+docker build --build-context node-ca=/path/to/ca-directory \
+  -t probecube-agent:local .
 
 docker run --rm \
   --name probecube-agent \
   --cap-add NET_RAW \
-  -v /etc/probecube/agent.yaml:/data/conf/agent.yaml:ro \
-  -v /etc/probecube/tls:/data/tls:ro \
+  -v probecube-agent-tls:/etc/probecube/tls \
+  -v /etc/probecube/state:/etc/probecube/state:ro \
   -v probecube-agent-state:/var/lib/probecube-agent \
   probecube-agent:local
 ```
 
+The new TLS named volume is initialized with the CA from the image and stays
+writable for enrollment and renewal. Keep the TLS and state volumes across
+container replacements. An existing TLS volume retains its original CA; after a
+CA rotation, update `node-ca.pem` in that volume while preserving the node's key
+and certificate. An empty host-directory bind mount would hide the image's CA.
+
+Keep the existing node initialization flow that obtains
+`/etc/probecube/state/enrollment.token` automatically. To override the baked
+configuration, mount a YAML file at `/data/conf/config.yaml:ro`.
+
 Use `--network host` only when the deployment requires the agent to observe the host network namespace directly and your security model permits it.
+
+### GitHub Actions and GHCR
+
+[The Docker workflow](.github/workflows/docker.yml) builds `linux/amd64` images:
+
+- Pull requests to `main` build without publishing or registry credentials.
+- Pushes to `main` publish `ghcr.io/omalloc/probecube-agent:main`, `:latest`, and
+  `:sha-<short-commit>`.
+- Tags matching `v*` publish the tag itself (for example `:v1.2.3`) and a SHA tag.
+- **Actions → Docker image → Run workflow** builds and publishes the selected ref.
+
+The registry login uses the automatic `GITHUB_TOKEN` with `packages: write`; no
+personal access token is needed. Set `NODE_CA_PEM` as described below before
+running the workflow. If an
+existing GHCR package rejects the push, grant this repository Actions access in
+the package settings. Make the package public if nodes should pull anonymously;
+otherwise authenticate each node to GHCR. Deploy a version tag or image digest
+when you need a fixed version rather than the moving `latest` tag.
+
+### Managing production configuration on GitHub
+
+- Commit the credential-free [`configs/config.prod.yaml`](configs/config.prod.yaml)
+  to Git. Docker copies it to `/data/conf/config.yaml`.
+- In **Settings → Secrets and variables → Actions → Variables**, create the
+  repository variable **`NODE_CA_PEM`**. Paste the complete public CA certificate,
+  including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`, with
+  real line breaks. Do not paste a path, base64-encode it, or include a private key.
+- Actions validates the PEM and Docker copies it to
+  `/etc/probecube/tls/node-ca.pem`, matching `leafnode.tls.root_ca`. A missing,
+  invalid or private-key-containing value fails the workflow before publishing.
+- `token_file` and the node identity stay with the existing initialization and
+  enrollment flow. No new GitHub Actions Secrets are required.
+
+The workflow reads `vars.NODE_CA_PEM` at repository scope; no Environment is
+required. To move the variable into a `production` Environment later, also add
+`environment: production` to the Docker job. Changes to the configuration or CA
+take effect in newly built images; changing a Variable alone does not rebuild an
+image, so use **Run workflow** after a CA update.
 
 ## Configuration reference
 

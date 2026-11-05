@@ -1,0 +1,13 @@
+.git
+.github
+bin
+configs/**
+!configs/config.prod.yaml
+certs
+**/*.key
+**/*.pem
+**/*.crt
+**/*.cert
+**/*.log
+**/.env*
+.DS_Store

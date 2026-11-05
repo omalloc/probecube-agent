@@ -70,9 +70,13 @@ type browserMetrics struct {
 
 func (m *browserMetrics) toMetrics() map[string]interface{} {
 	return map[string]interface{}{
-		"fcp_ms": m.FCPMs, "lcp_ms": m.LCPMs, "cls": m.CLS,
-		"dcl_ms": m.DCLMs, "load_ms": m.LoadMs,
-		"title": m.Title, "final_url": m.URL,
+		"fcp_ms":    m.FCPMs,
+		"lcp_ms":    m.LCPMs,
+		"cls":       m.CLS,
+		"dcl_ms":    m.DCLMs,
+		"load_ms":   m.LoadMs,
+		"title":     m.Title,
+		"final_url": m.URL,
 	}
 }
 

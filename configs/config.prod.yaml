@@ -1,0 +1,31 @@
+# Shared production configuration, versioned with the agent.
+#
+# IDENTICAL on every node. Contains no secrets: the agent obtains its client
+# certificate at first start via enrollment and renews it automatically, so this
+# file can be baked into a shared image.
+server:
+  http:
+    addr: localhost:0
+    timeout: 1s
+
+leafnode:
+  endpoint:
+    - "tls://nats-console.konoaho.com:4222"
+  tls:
+    # Written by the agent at enrollment. Must be writable by the agent process.
+    cert_file: /etc/probecube/tls/agent.crt
+    key_file: /etc/probecube/tls/agent.key
+    # Trust anchor used to verify the NATS server certificate.
+    root_ca: /etc/probecube/tls/node-ca.pem
+
+  # Used only while cert_file does not exist. The token is single-use and
+  # short-lived; after a successful exchange the agent never needs it again.
+  enrollment:
+    url: https://console.konoaho.com/v1/node/enroll
+    # Per-node. Obtained by node initialization; keep it out of the shared image.
+    token_file: /etc/probecube/state/enrollment.token
+
+worker:
+  pool_size: 10
+  timeout: 5s
+  interval: 5s

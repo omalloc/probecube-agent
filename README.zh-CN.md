@@ -94,17 +94,18 @@ worker:
 
 ### 配置与密钥
 
-Agent 在启动时从磁盘读取配置（`-conf` 接受文件或目录）。**配置文件本身不含任何秘密**，
-可以全局可读：节点通过 mTLS 客户端证书向 NATS 证明身份，中心侧的 auth callout 服务
+Agent 在启动时从磁盘读取配置（`-conf` 接受文件或目录）。将凭据存放在独立文件中，
+配置文件即可全局可读：节点通过 mTLS 客户端证书向 NATS 证明身份，中心侧的 auth callout 服务
 从证书的 URI SAN（`spiffe://probecube/node/<uuid>`）推导节点身份，并为每条连接签发
 短期 user JWT。
 
 | 文件 | 是否含秘密 | 权限 |
 | --- | --- | --- |
-| `agent.yaml` | 否 | `0644` |
+| `agent.yaml` | 凭据单独存放时不含秘密 | `0644` |
 | `agent.crt` | 否（公开证书） | `0644` |
 | `agent.key` | **是** | `0600`，属主为 agent 运行用户 |
 | `node-ca.pem` | 否 | `0644` |
+| `enrollment.token` | **是**（每节点独立、一次性） | `0600` |
 
 二进制内不含任何敏感数据，因此构建期不需要秘密，也不再有 `PROBECUBE_DESKEY`。
 `leafnode.nkeys` 已废弃并被忽略。
@@ -124,21 +125,61 @@ sudo ./bin/probecube-agent -conf /etc/probecube/agent.yaml
 
 ### Docker
 
-构建期无秘密。配置与证书在运行期挂载：
+镜像包含 Git 中的 `configs/config.prod.yaml` 和 CA 公共证书。
+节点 token、客户端证书和私钥在运行期获取。本地构建时，准备一个只包含 `node-ca.pem` 的目录：
 
 ```bash
-docker build -t probecube-agent:local .
+docker build --build-context node-ca=/path/to/ca-directory \
+  -t probecube-agent:local .
 
 docker run --rm \
   --name probecube-agent \
   --cap-add NET_RAW \
-  -v /etc/probecube/agent.yaml:/data/conf/agent.yaml:ro \
-  -v /etc/probecube/tls:/data/tls:ro \
+  -v probecube-agent-tls:/etc/probecube/tls \
+  -v /etc/probecube/state:/etc/probecube/state:ro \
   -v probecube-agent-state:/var/lib/probecube-agent \
   probecube-agent:local
 ```
 
+新建的 TLS 命名数据卷会从镜像复制初始 CA，并保持可写，供首次注册及证书续期使用。
+更换容器时保留 TLS 和 state 数据卷。已有 TLS 数据卷会保留旧 CA；CA 轮换后，需要单独更新
+卷内的 `node-ca.pem`，保留节点证书和私钥。直接挂载空的宿主机 TLS 目录会遮住镜像中的 CA。
+
+`/etc/probecube/state/enrollment.token` 沿用现有节点初始化流程自动获取。
+需要覆盖镜像中的配置时，可将 YAML 文件只读挂载到 `/data/conf/config.yaml`。
+
 只有在部署确实需要 Agent 直接观测宿主机网络命名空间，并且安全模型允许时，才应使用 `--network host`。
+
+### GitHub Actions 与 GHCR
+
+[Docker 工作流](.github/workflows/docker.yml) 构建 `linux/amd64` 镜像：
+
+- 提交到 `main` 的 Pull Request：仅构建，不登录仓库、不推送镜像。
+- 推送到 `main`：发布 `ghcr.io/omalloc/probecube-agent:main`、`:latest`
+  和 `:sha-<短提交号>`。
+- 推送 `v*` 标签：发布对应标签（例如 `:v1.2.3`）和 SHA 标签。
+- **Actions → Docker image → Run workflow**：手动构建并发布所选 ref。
+
+使用 GitHub 自动提供的 `GITHUB_TOKEN`，权限为 `packages: write`；无需配置 PAT。
+首次运行前需要按下节设置 `NODE_CA_PEM`。如果已有 GHCR Package 推送失败，在 Package 设置中
+授予当前仓库 Actions 访问权限。节点需要匿名拉取时，将 Package 可见性设为 Public；
+私有镜像则需要在节点登录 GHCR。需要固定版本时使用版本标签或镜像 digest，避免使用会变动的 `latest`。
+
+### 在 GitHub 管理生产配置
+
+- 无凭据的 [`configs/config.prod.yaml`](configs/config.prod.yaml) 纳入 Git 版本管理，
+  Docker 将其复制到 `/data/conf/config.yaml`。
+- 在 **Settings → Secrets and variables → Actions → Variables** 新建 Repository Variable：
+  **`NODE_CA_PEM`**。值为 CA 公共证书的完整 PEM，保留真实换行及
+  `-----BEGIN CERTIFICATE-----` / `-----END CERTIFICATE-----`。
+  不要填文件路径、不要额外做 Base64 编码、不要放入私钥。
+- Actions 校验 PEM 后，Docker 将其复制到 `/etc/probecube/tls/node-ca.pem`，
+  与 `leafnode.tls.root_ca` 一致。变量缺失、证书无效或混入私钥时，工作流会在发布前失败。
+- `token_file` 和节点身份继续由现有初始化、注册流程管理，无需新增 GitHub Actions Secrets。
+
+当前工作流读取 Repository 级别的 `vars.NODE_CA_PEM`，不要求创建 Environment。
+以后要改用 `production` Environment Variable，还需要给 Docker job 添加 `environment: production`。
+配置与 CA 的更新通过重新构建镜像生效；只修改 Variable 不会自动构建，更新 CA 后可手动 **Run workflow**。
 
 ## 配置参考
 
