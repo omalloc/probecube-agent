@@ -61,7 +61,7 @@ ProbeCube Agent 是 ProbeCube 监控平台的分布式拨测执行端。你可�
 - 可访问的 NATS Server
 - mTLS 客户端证书、其私钥，以及签发 NATS 服务端证书的根 CA
 - TCP SYN 拨测需要 Linux 与 root/`CAP_NET_RAW`
-- 如需序列号跨重启持久化，需要有权限创建 `/var/lib/probecube-agent/machine-id`
+- 如需序列号跨重启持久化，需要有权限创建 `<workdir>/machine-id` (`workdir: /var/lib/probecube-agent`)
 
 ## 快速开始
 
@@ -209,7 +209,7 @@ Agent 交换的 Protocol Buffer Payload 定义在 [`probecube-api/message/v1`](h
 | `dialsys.heartbeat` | Agent → Console | 两秒一次的心跳，Header 包含 `host`、公网 `ip`、私网 `priv_ip` 与 `sn`。 |
 | `dialsys.node.metadata` | Agent ↔ Console | 查询 Agent 节点元数据的 Request/Reply，每分钟刷新一次。 |
 
-发布的消息包含 `content-type: application/protobuf`、`schema-version: v1` 和 Agent `sn`。持久化 SN 从 `/var/lib/probecube-agent/machine-id` 读取；文件不存在时，Agent 会生成机器标识并尝试写入该路径。
+发布的消息包含 `content-type: application/protobuf`、`schema-version: v1` 和 Agent `sn`。持久化 SN 从 `<workdir>/machine-id` (`workdir: /var/lib/probecube-agent`) 读取；文件不存在时，Agent 会生成机器标识并尝试写入该路径。
 
 心跳中的公网/私网地址每分钟刷新一次。地址发现使用 UDP STUN，依次尝试 `stun.miwifi.com:3478` 与 `stun.cloudflare.com:3478`。
 

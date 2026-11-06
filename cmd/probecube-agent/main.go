@@ -9,6 +9,7 @@ import (
 	"github.com/omalloc/probecube-agent/internal/conf"
 	"github.com/omalloc/probecube-agent/internal/engine"
 	"github.com/omalloc/probecube-agent/internal/messaging"
+	"github.com/omalloc/probecube-agent/pkg/sn"
 
 	"github.com/go-kratos/kratos/v3"
 	"github.com/go-kratos/kratos/v3/config"
@@ -85,7 +86,7 @@ func main() {
 	// Enrollment has to run before wiring: the NATS client cannot connect
 	// without a client certificate, and the certificate is what enrollment
 	// produces. With a certificate already on disk this is a no-op.
-	if err := messaging.EnsureCertificate(context.Background(), bc.GetLeafnode(), messaging.LoadSN()); err != nil {
+	if err := messaging.EnsureCertificate(context.Background(), bc.GetLeafnode(), sn.Load(bc.GetWorkdir())); err != nil {
 		panic(err)
 	}
 

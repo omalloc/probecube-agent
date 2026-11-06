@@ -31,14 +31,14 @@ func TestNewClient_Integration(t *testing.T) {
 		t.Fatal("PROBECUBE_E2E_NODE_ID must be set for the integration test")
 	}
 
-	client, cleanup, err := NewClient(&conf.LeafNode{
+	client, cleanup, err := NewClient(&conf.Bootstrap{Workdir: t.TempDir(), Leafnode: &conf.LeafNode{
 		Endpoint: []string{url},
 		Tls: &conf.LeafNode_TLS{
 			CertFile: os.Getenv("PROBECUBE_E2E_CERT"),
 			KeyFile:  os.Getenv("PROBECUBE_E2E_KEY"),
 			RootCa:   os.Getenv("PROBECUBE_E2E_CA"),
 		},
-	})
+	}})
 	if err != nil {
 		t.Fatalf("NewClient() = %v, want nil", err)
 	}

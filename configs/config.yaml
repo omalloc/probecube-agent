@@ -1,3 +1,6 @@
+# Directory for persistent agent state (machine-id).
+workdir: /var/lib/probecube-agent
+
 server:
   http:
     addr: localhost:0

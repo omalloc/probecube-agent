@@ -61,7 +61,7 @@ At startup, the agent establishes its NATS identity from a persistent machine ID
 - A reachable NATS server
 - An mTLS client certificate, its private key and the root CA that signed the NATS server certificate
 - Linux and root/`CAP_NET_RAW` for TCP SYN probing
-- Permission to create `/var/lib/probecube-agent/machine-id` if the serial number must persist across restarts
+- Permission to create `<workdir>/machine-id` (`workdir: /var/lib/probecube-agent`) if the serial number must persist across restarts
 
 ## Quick start
 
@@ -224,7 +224,7 @@ The agent exchanges Protocol Buffer payloads defined by [`probecube-api/message/
 | `dialsys.heartbeat`            | Agent → console | Two-second heartbeat with `host`, public `ip`, private `priv_ip`, and `sn` headers. |
 | `dialsys.node.metadata`        | Agent ↔ console | Request/reply lookup for the agent's node metadata, refreshed every minute.         |
 
-Published messages include `content-type: application/protobuf`, `schema-version: v1`, and the agent `sn`. The persistent SN is loaded from `/var/lib/probecube-agent/machine-id`; if the file is absent, the agent derives a machine identifier and attempts to write it there.
+Published messages include `content-type: application/protobuf`, `schema-version: v1`, and the agent `sn`. The persistent SN is loaded from `<workdir>/machine-id` (`workdir: /var/lib/probecube-agent`); if the file is absent, the agent derives a machine identifier and attempts to write it there.
 
 The heartbeat public/private address pair is refreshed every minute. Discovery uses UDP STUN and tries `stun.miwifi.com:3478` followed by `stun.cloudflare.com:3478`.
 

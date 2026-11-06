@@ -20,7 +20,7 @@ import (
 // wireApp init kratos application.
 func wireApp(*conf.Bootstrap, *slog.Logger) (*kratos.App, func(), error) {
 	panic(wire.Build(
-		wire.FieldsOf(new(*conf.Bootstrap), "Server", "LeafNode", "Worker"),
+		wire.FieldsOf(new(*conf.Bootstrap), "Server", "Worker"),
 
 		engine.ProviderSet,
 		messaging.ProviderSet,

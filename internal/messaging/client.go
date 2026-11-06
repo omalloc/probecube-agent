@@ -11,6 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v3/log"
 	"github.com/nats-io/nats.go"
 	"github.com/omalloc/probecube-agent/internal/conf"
+	"github.com/omalloc/probecube-agent/pkg/sn"
 )
 
 // permissionSubjectRe extracts the offending subject from a NATS permission
@@ -29,13 +30,14 @@ type Client struct {
 // NewClient dials the centre NATS server over mTLS. There is no NKey seed or
 // credentials file: the node proves who it is with its client certificate and
 // the server's auth callout service decides what it may publish and subscribe.
-func NewClient(c *conf.LeafNode) (*Client, func(), error) {
+func NewClient(bc *conf.Bootstrap) (*Client, func(), error) {
+	c := bc.GetLeafnode()
 	if err := validateLeafNode(c); err != nil {
 		return nil, func() {}, err
 	}
 
 	tlsCfg := c.GetTls()
-	sn := LoadSN()
+	sn := sn.Load(bc.GetWorkdir())
 	nodeID := loadNodeID(tlsCfg.GetCertFile())
 
 	// Multiple addresses are joined into a single comma-separated URL list.

@@ -27,16 +27,15 @@ func wireApp(bootstrap *conf.Bootstrap, logger *slog.Logger) (*kratos.App, func(
 	httpServer := server.NewHTTPServer(confServer)
 	worker := bootstrap.Worker
 	schedulerConfig := server.ProviderWorkerConfig(worker)
-	engineScheduler := server.NewSchedulerServer(schedulerConfig)
-	leafNode := bootstrap.Leafnode
-	client, cleanup, err := messaging.NewClient(leafNode)
+	probeEngineScheduler := server.NewSchedulerServer(schedulerConfig)
+	client, cleanup, err := messaging.NewClient(bootstrap)
 	if err != nil {
 		return nil, nil, err
 	}
 	publisher := messaging.NewPublisher(client)
 	subscriber := messaging.NewSubscriber(client, logger)
-	collector := engine.NewCollector(client, publisher, subscriber, engineScheduler, logger)
-	app := newApp(logger, httpServer, engineScheduler, collector)
+	collector := engine.NewCollector(client, publisher, subscriber, probeEngineScheduler, logger)
+	app := newApp(logger, httpServer, probeEngineScheduler, collector)
 	return app, func() {
 		cleanup()
 	}, nil
