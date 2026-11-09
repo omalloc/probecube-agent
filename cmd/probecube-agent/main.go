@@ -54,16 +54,6 @@ func newApp(logger *slog.Logger, hs *http.Server, sd engine.ProbeEngineScheduler
 
 func main() {
 	flag.Parse()
-	logLevelVar := new(slog.LevelVar)
-	logger := log.NewLogger(
-		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			AddSource: false,
-			Level:     logLevelVar,
-		}),
-	).With(
-		slog.String("service.id", id),
-	)
-	log.SetDefault(logger)
 
 	// Configuration is read from disk at startup. It carries no secrets: the
 	// node identity comes from the mTLS client certificate referenced by
@@ -91,7 +81,7 @@ func main() {
 		panic(err)
 	}
 
-	app, cleanup, err := wireApp(&bc, logger)
+	app, cleanup, err := wireApp(c, &bc)
 	if err != nil {
 		panic(err)
 	}
@@ -101,4 +91,29 @@ func main() {
 	if err := app.Run(); err != nil {
 		panic(err)
 	}
+}
+
+func newLogLevelVar() *slog.LevelVar {
+	lvl := new(slog.LevelVar)
+	lvl.Set(slog.LevelDebug)
+	return lvl
+}
+
+func newLogger(c config.Config, levelVar *slog.LevelVar) *slog.Logger {
+	logger := log.NewLogger(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			AddSource: false,
+			Level:     levelVar,
+		})).With(slog.String("service.id", id))
+
+	log.SetDefault(logger)
+
+	_ = c.Watch("logger.level", func(key string, val config.Value) {
+		lv, _ := val.String()
+		level := log.ParseLevel(lv)
+
+		levelVar.Set(level)
+		log.Info("logger level updated", slog.String("new-level", level.String()))
+	})
+	return logger
 }

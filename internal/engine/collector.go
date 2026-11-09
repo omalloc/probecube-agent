@@ -54,6 +54,7 @@ func (c *Collector) Start(ctx context.Context) error {
 
 	for {
 		if c.publisher.HasReady() {
+			c.log.InfoContext(ctx, "Publisher and subscriber to be ready")
 			break
 		}
 
@@ -126,11 +127,7 @@ func (c *Collector) heartbeat(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			netAddrs, ok := c.netAddrs.Load().(netinfo.Addrs)
-			if !ok {
-				c.log.DebugContext(ctx, "heartbeat skipped: network addresses unavailable", "sn", c.nodeSN)
-				continue
-			}
+			netAddrs, _ := c.netAddrs.Load().(netinfo.Addrs)
 
 			h := make(messaging.Header)
 			h.Set("host", hostname)
@@ -148,17 +145,17 @@ func (c *Collector) heartbeat(ctx context.Context) {
 
 func (c *Collector) netdial(ctx context.Context) {
 	load := func() {
-		sctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		sctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
 		netAddrs, err := netinfo.Discover(sctx)
 		if err != nil {
-			c.log.WarnContext(ctx, "Failed to refresh network addresses; heartbeat requires a successful discovery", "sn", c.nodeSN, "retry_interval", "1m", "err", err)
+			c.log.WarnContext(ctx, "Failed to refresh network addresses; continuing heartbeats with last known addresses", "sn", c.nodeSN, "retry_interval", "1m", "err", err)
 			return
 		}
 
 		c.netAddrs.Store(netAddrs)
-		c.log.DebugContext(ctx, "network addresses discovered", "sn", c.nodeSN)
+		c.log.DebugContext(ctx, "network addresses discovered", "sn", c.nodeSN, "netAddrs", netAddrs)
 	}
 
 	load()

@@ -8,11 +8,11 @@ package main
 
 import (
 	"github.com/go-kratos/kratos/v3"
+	"github.com/go-kratos/kratos/v3/config"
 	"github.com/omalloc/probecube-agent/internal/conf"
 	"github.com/omalloc/probecube-agent/internal/engine"
 	"github.com/omalloc/probecube-agent/internal/messaging"
 	"github.com/omalloc/probecube-agent/internal/server"
-	"log/slog"
 )
 
 import (
@@ -22,13 +22,15 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(bootstrap *conf.Bootstrap, logger *slog.Logger) (*kratos.App, func(), error) {
-	confServer := bootstrap.Server
+func wireApp(c config.Config, bc *conf.Bootstrap) (*kratos.App, func(), error) {
+	levelVar := newLogLevelVar()
+	logger := newLogger(c, levelVar)
+	confServer := bc.Server
 	httpServer := server.NewHTTPServer(confServer)
-	worker := bootstrap.Worker
+	worker := bc.Worker
 	schedulerConfig := server.ProviderWorkerConfig(worker)
 	probeEngineScheduler := server.NewSchedulerServer(schedulerConfig)
-	client, cleanup, err := messaging.NewClient(bootstrap)
+	client, cleanup, err := messaging.NewClient(bc)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -2,6 +2,7 @@ package netinfo
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strings"
 	"testing"
@@ -41,17 +42,29 @@ func TestFetch_RetriesAfterFailure(t *testing.T) {
 	}
 }
 
-func TestFetch_GivesEachServerItsOwnTimeout(t *testing.T) {
-	server := newDelayedSTUNServer(t, "203.0.113.30", 50*time.Millisecond)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-	defer cancel()
-	got, err := Fetch(ctx, []string{server.LocalAddr().String()})
-	if err != nil {
-		t.Fatalf("Fetch() error = %v", err)
+func TestFetch_HonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Fetch(ctx, []string{"127.0.0.1:3478"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v", err)
 	}
-	if got.PublicIP != "203.0.113.30" {
-		t.Errorf("public IP = %q, want %q", got.PublicIP, "203.0.113.30")
+}
+
+func TestFetch_TimesOutSilentServer(t *testing.T) {
+	server, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err = Fetch(ctx, []string{server.LocalAddr().String()})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("got %v", err)
+	}
+	if time.Since(start) > time.Second {
+		t.Fatal("did not stop promptly")
 	}
 }
 

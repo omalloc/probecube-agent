@@ -6,21 +6,23 @@
 package main
 
 import (
-	"log/slog"
-
 	"github.com/omalloc/probecube-agent/internal/conf"
 	"github.com/omalloc/probecube-agent/internal/engine"
 	"github.com/omalloc/probecube-agent/internal/messaging"
 	"github.com/omalloc/probecube-agent/internal/server"
 
 	"github.com/go-kratos/kratos/v3"
+	"github.com/go-kratos/kratos/v3/config"
 	"github.com/google/wire"
 )
 
 // wireApp init kratos application.
-func wireApp(*conf.Bootstrap, *slog.Logger) (*kratos.App, func(), error) {
+func wireApp(c config.Config, bc *conf.Bootstrap) (*kratos.App, func(), error) {
 	panic(wire.Build(
 		wire.FieldsOf(new(*conf.Bootstrap), "Server", "Worker"),
+
+		newLogLevelVar,
+		newLogger,
 
 		engine.ProviderSet,
 		messaging.ProviderSet,

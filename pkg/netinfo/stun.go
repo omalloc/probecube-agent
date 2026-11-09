@@ -36,9 +36,10 @@ func Fetch(ctx context.Context, servers []string) (Addrs, error) {
 
 	serverErrors := make([]error, 0, len(servers))
 	for _, server := range servers {
-		// Each server gets a complete attempt. An upstream deadline must not
-		// prevent the remaining servers from being tried.
-		attemptCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), stunServerTimeout)
+		if err := ctx.Err(); err != nil {
+			return Addrs{}, err
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, stunServerTimeout)
 		addrs, err := fetch(attemptCtx, server)
 		cancel()
 
@@ -56,16 +57,6 @@ func fetch(ctx context.Context, server string) (Addrs, error) {
 	if err != nil {
 		return Addrs{}, fmt.Errorf("dial STUN server: %w", err)
 	}
-	if deadline, ok := ctx.Deadline(); ok {
-		if err := conn.SetDeadline(deadline); err != nil {
-			_ = conn.Close()
-			return Addrs{}, fmt.Errorf("set STUN deadline: %w", err)
-		}
-	}
-	stopCancel := context.AfterFunc(ctx, func() {
-		_ = conn.SetDeadline(time.Now())
-	})
-	defer stopCancel()
 
 	localIP := ipFromAddr(conn.LocalAddr())
 	if localIP == "" {
@@ -80,21 +71,32 @@ func fetch(ctx context.Context, server string) (Addrs, error) {
 	}
 	defer client.Close()
 
-	var mappedAddr stun.XORMappedAddress
-	var responseErr error
-	err = client.Do(stun.MustBuild(stun.TransactionID, stun.BindingRequest), func(event stun.Event) {
-		if event.Error != nil {
-			responseErr = event.Error
-			return
+	type response struct {
+		addr stun.XORMappedAddress
+		err  error
+	}
+	replies := make(chan response, 1)
+	err = client.Start(stun.MustBuild(stun.TransactionID, stun.BindingRequest), func(event stun.Event) {
+		result := response{err: event.Error}
+		if result.err == nil {
+			result.err = result.addr.GetFrom(event.Message)
 		}
-		responseErr = mappedAddr.GetFrom(event.Message)
+		replies <- result
 	})
 	if err != nil {
 		return Addrs{}, fmt.Errorf("send STUN binding request: %w", err)
 	}
-	if responseErr != nil {
-		return Addrs{}, fmt.Errorf("receive STUN binding response: %w", responseErr)
+	var mappedAddr stun.XORMappedAddress
+	select {
+	case <-ctx.Done():
+		return Addrs{}, ctx.Err()
+	case result := <-replies:
+		if result.err != nil {
+			return Addrs{}, fmt.Errorf("receive STUN binding response: %w", result.err)
+		}
+		mappedAddr = result.addr
 	}
+
 	if mappedAddr.IP == nil {
 		return Addrs{}, fmt.Errorf("receive STUN binding response: missing public IP")
 	}
