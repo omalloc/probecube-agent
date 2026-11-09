@@ -28,6 +28,7 @@ type Bootstrap struct {
 	Server        *Server                `protobuf:"bytes,2,opt,name=server,proto3" json:"server,omitempty"`
 	Leafnode      *LeafNode              `protobuf:"bytes,3,opt,name=leafnode,proto3" json:"leafnode,omitempty"`
 	Worker        *Worker                `protobuf:"bytes,4,opt,name=worker,proto3" json:"worker,omitempty"`
+	Logger        *Logger                `protobuf:"bytes,5,opt,name=logger,proto3" json:"logger,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -86,6 +87,13 @@ func (x *Bootstrap) GetLeafnode() *LeafNode {
 func (x *Bootstrap) GetWorker() *Worker {
 	if x != nil {
 		return x.Worker
+	}
+	return nil
+}
+
+func (x *Bootstrap) GetLogger() *Logger {
+	if x != nil {
+		return x.Logger
 	}
 	return nil
 }
@@ -350,6 +358,58 @@ func (x *Worker) GetInterval() *durationpb.Duration {
 	return nil
 }
 
+type Logger struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         string                 `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	Caller        bool                   `protobuf:"varint,2,opt,name=caller,proto3" json:"caller,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Logger) Reset() {
+	*x = Logger{}
+	mi := &file_conf_conf_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Logger) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Logger) ProtoMessage() {}
+
+func (x *Logger) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_conf_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Logger.ProtoReflect.Descriptor instead.
+func (*Logger) Descriptor() ([]byte, []int) {
+	return file_conf_conf_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Logger) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *Logger) GetCaller() bool {
+	if x != nil {
+		return x.Caller
+	}
+	return false
+}
+
 type Server_HTTP struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Network       string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
@@ -361,7 +421,7 @@ type Server_HTTP struct {
 
 func (x *Server_HTTP) Reset() {
 	*x = Server_HTTP{}
-	mi := &file_conf_conf_proto_msgTypes[5]
+	mi := &file_conf_conf_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -373,7 +433,7 @@ func (x *Server_HTTP) String() string {
 func (*Server_HTTP) ProtoMessage() {}
 
 func (x *Server_HTTP) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[5]
+	mi := &file_conf_conf_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,7 +481,7 @@ type Server_GRPC struct {
 
 func (x *Server_GRPC) Reset() {
 	*x = Server_GRPC{}
-	mi := &file_conf_conf_proto_msgTypes[6]
+	mi := &file_conf_conf_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -433,7 +493,7 @@ func (x *Server_GRPC) String() string {
 func (*Server_GRPC) ProtoMessage() {}
 
 func (x *Server_GRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[6]
+	mi := &file_conf_conf_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +545,7 @@ type LeafNode_TLS struct {
 
 func (x *LeafNode_TLS) Reset() {
 	*x = LeafNode_TLS{}
-	mi := &file_conf_conf_proto_msgTypes[7]
+	mi := &file_conf_conf_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +557,7 @@ func (x *LeafNode_TLS) String() string {
 func (*LeafNode_TLS) ProtoMessage() {}
 
 func (x *LeafNode_TLS) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[7]
+	mi := &file_conf_conf_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -539,12 +599,13 @@ var File_conf_conf_proto protoreflect.FileDescriptor
 const file_conf_conf_proto_rawDesc = "" +
 	"\n" +
 	"\x0fconf/conf.proto\x12\n" +
-	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\"\xaf\x01\n" +
+	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\"\xdb\x01\n" +
 	"\tBootstrap\x12\x18\n" +
 	"\aworkdir\x18\x01 \x01(\tR\aworkdir\x12*\n" +
 	"\x06server\x18\x02 \x01(\v2\x12.kratos.api.ServerR\x06server\x120\n" +
 	"\bleafnode\x18\x03 \x01(\v2\x14.kratos.api.LeafNodeR\bleafnode\x12*\n" +
-	"\x06worker\x18\x04 \x01(\v2\x12.kratos.api.WorkerR\x06worker\"\xb8\x02\n" +
+	"\x06worker\x18\x04 \x01(\v2\x12.kratos.api.WorkerR\x06worker\x12*\n" +
+	"\x06logger\x18\x05 \x01(\v2\x12.kratos.api.LoggerR\x06logger\"\xb8\x02\n" +
 	"\x06Server\x12+\n" +
 	"\x04http\x18\x01 \x01(\v2\x17.kratos.api.Server.HTTPR\x04http\x12+\n" +
 	"\x04grpc\x18\x02 \x01(\v2\x17.kratos.api.Server.GRPCR\x04grpc\x1ai\n" +
@@ -577,7 +638,10 @@ const file_conf_conf_proto_rawDesc = "" +
 	"\tpool_size\x18\x01 \x01(\x05R\bpoolSize\x12\x14\n" +
 	"\x05async\x18\x02 \x01(\bR\x05async\x123\n" +
 	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x125\n" +
-	"\binterval\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\bintervalB7Z5github.com/omalloc/probecube-agent/internal/conf;confb\x06proto3"
+	"\binterval\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\binterval\"6\n" +
+	"\x06Logger\x12\x14\n" +
+	"\x05level\x18\x01 \x01(\tR\x05level\x12\x16\n" +
+	"\x06caller\x18\x02 \x01(\bR\x06callerB7Z5github.com/omalloc/probecube-agent/internal/conf;confb\x06proto3"
 
 var (
 	file_conf_conf_proto_rawDescOnce sync.Once
@@ -591,35 +655,37 @@ func file_conf_conf_proto_rawDescGZIP() []byte {
 	return file_conf_conf_proto_rawDescData
 }
 
-var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_conf_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),           // 0: kratos.api.Bootstrap
 	(*Server)(nil),              // 1: kratos.api.Server
 	(*LeafNode)(nil),            // 2: kratos.api.LeafNode
 	(*Enrollment)(nil),          // 3: kratos.api.Enrollment
 	(*Worker)(nil),              // 4: kratos.api.Worker
-	(*Server_HTTP)(nil),         // 5: kratos.api.Server.HTTP
-	(*Server_GRPC)(nil),         // 6: kratos.api.Server.GRPC
-	(*LeafNode_TLS)(nil),        // 7: kratos.api.LeafNode.TLS
-	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
+	(*Logger)(nil),              // 5: kratos.api.Logger
+	(*Server_HTTP)(nil),         // 6: kratos.api.Server.HTTP
+	(*Server_GRPC)(nil),         // 7: kratos.api.Server.GRPC
+	(*LeafNode_TLS)(nil),        // 8: kratos.api.LeafNode.TLS
+	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
 }
 var file_conf_conf_proto_depIdxs = []int32{
 	1,  // 0: kratos.api.Bootstrap.server:type_name -> kratos.api.Server
 	2,  // 1: kratos.api.Bootstrap.leafnode:type_name -> kratos.api.LeafNode
 	4,  // 2: kratos.api.Bootstrap.worker:type_name -> kratos.api.Worker
-	5,  // 3: kratos.api.Server.http:type_name -> kratos.api.Server.HTTP
-	6,  // 4: kratos.api.Server.grpc:type_name -> kratos.api.Server.GRPC
-	7,  // 5: kratos.api.LeafNode.tls:type_name -> kratos.api.LeafNode.TLS
-	3,  // 6: kratos.api.LeafNode.enrollment:type_name -> kratos.api.Enrollment
-	8,  // 7: kratos.api.Worker.timeout:type_name -> google.protobuf.Duration
-	8,  // 8: kratos.api.Worker.interval:type_name -> google.protobuf.Duration
-	8,  // 9: kratos.api.Server.HTTP.timeout:type_name -> google.protobuf.Duration
-	8,  // 10: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	5,  // 3: kratos.api.Bootstrap.logger:type_name -> kratos.api.Logger
+	6,  // 4: kratos.api.Server.http:type_name -> kratos.api.Server.HTTP
+	7,  // 5: kratos.api.Server.grpc:type_name -> kratos.api.Server.GRPC
+	8,  // 6: kratos.api.LeafNode.tls:type_name -> kratos.api.LeafNode.TLS
+	3,  // 7: kratos.api.LeafNode.enrollment:type_name -> kratos.api.Enrollment
+	9,  // 8: kratos.api.Worker.timeout:type_name -> google.protobuf.Duration
+	9,  // 9: kratos.api.Worker.interval:type_name -> google.protobuf.Duration
+	9,  // 10: kratos.api.Server.HTTP.timeout:type_name -> google.protobuf.Duration
+	9,  // 11: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_conf_conf_proto_init() }
@@ -633,7 +699,7 @@ func file_conf_conf_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_conf_conf_proto_rawDesc), len(file_conf_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

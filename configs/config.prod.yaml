@@ -1,5 +1,10 @@
 # Shared production configuration, versioned with the agent.
 #
+# Directory for persistent agent state (machine-id).
+workdir: /etc/probecube/state
+
+logger:
+  level: debug
 # IDENTICAL on every node. Contains no secrets: the agent obtains its client
 # certificate at first start via enrollment and renews it automatically, so this
 # file can be baked into a shared image.

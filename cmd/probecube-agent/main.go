@@ -54,10 +54,11 @@ func newApp(logger *slog.Logger, hs *http.Server, sd engine.ProbeEngineScheduler
 
 func main() {
 	flag.Parse()
+	logLevelVar := new(slog.LevelVar)
 	logger := log.NewLogger(
 		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			AddSource: false,
-			Level:     slog.LevelInfo,
+			Level:     logLevelVar,
 		}),
 	).With(
 		slog.String("service.id", id),

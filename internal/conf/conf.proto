@@ -10,6 +10,7 @@ message Bootstrap {
   Server server = 2;
   LeafNode leafnode = 3;
   Worker worker = 4;
+  Logger logger = 5;
 }
 
 message Server {
@@ -64,4 +65,9 @@ message Worker {
   bool async = 2;
   google.protobuf.Duration timeout = 3;
   google.protobuf.Duration interval = 4;
+}
+
+message Logger {
+    string level = 1;
+    bool caller = 2;
 }

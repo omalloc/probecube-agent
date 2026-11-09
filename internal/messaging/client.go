@@ -79,8 +79,10 @@ func NewClient(bc *conf.Bootstrap) (*Client, func(), error) {
 
 	nc, err := nats.Connect(urls, opts...)
 	if err != nil {
+		log.Error("[NATS] initial connection failed", "sn", sn, "err", err)
 		return nil, func() {}, err
 	}
+	log.Info("[NATS] connected", "sn", sn, "node_id", nodeID, "server", nc.ConnectedServerName())
 
 	cleanup := func() {
 		if err := nc.Drain(); err != nil {
